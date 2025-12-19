@@ -538,6 +538,8 @@ export class CustomizeView extends LitElement {
     static properties = {
         selectedProfile: { type: String },
         selectedLanguage: { type: String },
+        selectedOutputLanguage: { type: String },
+        selectedOutputProgrammingLanguage: { type: String },
         selectedImageQuality: { type: String },
         layoutMode: { type: String },
         keybinds: { type: Object },
@@ -547,6 +549,8 @@ export class CustomizeView extends LitElement {
         theme: { type: String },
         onProfileChange: { type: Function },
         onLanguageChange: { type: Function },
+        onOutputLanguageChange: { type: Function },
+        onOutputProgrammingLanguageChange: { type: Function },
         onImageQualityChange: { type: Function },
         onLayoutModeChange: { type: Function },
         activeSection: { type: String },
@@ -559,11 +563,15 @@ export class CustomizeView extends LitElement {
         super();
         this.selectedProfile = 'interview';
         this.selectedLanguage = 'en-US';
+        this.selectedOutputLanguage = 'en-US';
+        this.selectedOutputProgrammingLanguage = 'python';
         this.selectedImageQuality = 'medium';
         this.layoutMode = 'normal';
         this.keybinds = this.getDefaultKeybinds();
         this.onProfileChange = () => {};
         this.onLanguageChange = () => {};
+        this.onOutputLanguageChange = () => {};
+        this.onOutputProgrammingLanguageChange = () => {};
         this.onImageQualityChange = () => {};
         this.onLayoutModeChange = () => {};
 
@@ -770,6 +778,25 @@ export class CustomizeView extends LitElement {
         ];
     }
 
+    getOutputLanguages() {
+        return [
+            { value: 'en-US', name: 'English' },
+            { value: 'cmn-CN', name: 'Chinese (Simplified)' },
+        ];
+    }
+
+    getOutputProgrammingLanguages() {
+        return [
+            { value: 'python', name: 'Python' },
+            { value: 'java', name: 'Java' },
+            { value: 'sql', name: 'SQL' },
+            { value: 'javascript', name: 'JavaScript' },
+            { value: 'cpp', name: 'C++' },
+            { value: 'c', name: 'C' },
+            { value: 'csharp', name: 'C#' },
+        ];
+    }
+
     getProfileNames() {
         return {
             interview: 'Job Interview',
@@ -789,6 +816,16 @@ export class CustomizeView extends LitElement {
     handleLanguageSelect(e) {
         this.selectedLanguage = e.target.value;
         this.onLanguageChange(this.selectedLanguage);
+    }
+
+    handleOutputLanguageSelect(e) {
+        this.selectedOutputLanguage = e.target.value;
+        this.onOutputLanguageChange(this.selectedOutputLanguage);
+    }
+
+    handleOutputProgrammingLanguageSelect(e) {
+        this.selectedOutputProgrammingLanguage = e.target.value;
+        this.onOutputProgrammingLanguageChange(this.selectedOutputProgrammingLanguage);
     }
 
     handleImageQualitySelect(e) {
@@ -1145,6 +1182,10 @@ export class CustomizeView extends LitElement {
     renderLanguageSection() {
         const languages = this.getLanguages();
         const currentLanguage = languages.find(l => l.value === this.selectedLanguage);
+        const outputLanguages = this.getOutputLanguages();
+        const currentOutputLanguage = outputLanguages.find(l => l.value === this.selectedOutputLanguage);
+        const outputProgrammingLanguages = this.getOutputProgrammingLanguages();
+        const currentOutputProgrammingLanguage = outputProgrammingLanguages.find(l => l.value === this.selectedOutputProgrammingLanguage);
 
         return html`
             <div class="content-header">Language</div>
@@ -1163,7 +1204,46 @@ export class CustomizeView extends LitElement {
                             `
                         )}
                     </select>
-                    <div class="form-description">Language for speech recognition and AI responses</div>
+                    <div class="form-description">Language for speech recognition (input transcription)</div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">
+                        Output Language
+                        <span class="current-selection">${currentOutputLanguage?.name || 'English'}</span>
+                    </label>
+                    <select class="form-control" .value=${this.selectedOutputLanguage} @change=${this.handleOutputLanguageSelect}>
+                        ${outputLanguages.map(
+                            language => html`
+                                <option value=${language.value} ?selected=${this.selectedOutputLanguage === language.value}>
+                                    ${language.name}
+                                </option>
+                            `
+                        )}
+                    </select>
+                    <div class="form-description">Language used for AI response prompts</div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">
+                        Output Programming Language
+                        <span class="current-selection">${currentOutputProgrammingLanguage?.name || 'Python'}</span>
+                    </label>
+                    <select
+                        class="form-control"
+                        .value=${this.selectedOutputProgrammingLanguage}
+                        @change=${this.handleOutputProgrammingLanguageSelect}
+                    >
+                        ${outputProgrammingLanguages.map(
+                            language => html`
+                                <option
+                                    value=${language.value}
+                                    ?selected=${this.selectedOutputProgrammingLanguage === language.value}
+                                >
+                                    ${language.name}
+                                </option>
+                            `
+                        )}
+                    </select>
+                    <div class="form-description">Programming language used for code in screenshot answers</div>
                 </div>
             </div>
         `;

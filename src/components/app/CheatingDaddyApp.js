@@ -100,6 +100,8 @@ export class CheatingDaddyApp extends LitElement {
         sessionActive: { type: Boolean },
         selectedProfile: { type: String },
         selectedLanguage: { type: String },
+        selectedOutputLanguage: { type: String },
+        selectedOutputProgrammingLanguage: { type: String },
         responses: { type: Array },
         currentResponseIndex: { type: Number },
         selectedScreenshotInterval: { type: String },
@@ -110,6 +112,7 @@ export class CheatingDaddyApp extends LitElement {
         _awaitingNewResponse: { state: true },
         shouldAnimateResponse: { type: Boolean },
         _storageLoaded: { state: true },
+        isManualScreenshotPending: { type: Boolean },
     };
 
     constructor() {
@@ -122,6 +125,8 @@ export class CheatingDaddyApp extends LitElement {
         this.sessionActive = false;
         this.selectedProfile = 'interview';
         this.selectedLanguage = 'en-US';
+        this.selectedOutputLanguage = 'en-US';
+        this.selectedOutputProgrammingLanguage = 'python';
         this.selectedScreenshotInterval = '5';
         this.selectedImageQuality = 'medium';
         this.layoutMode = 'normal';
@@ -133,6 +138,7 @@ export class CheatingDaddyApp extends LitElement {
         this._currentResponseIsComplete = true;
         this.shouldAnimateResponse = false;
         this._storageLoaded = false;
+        this.isManualScreenshotPending = false;
 
         // Load from storage
         this._loadFromStorage();
@@ -157,6 +163,8 @@ export class CheatingDaddyApp extends LitElement {
             // Load preferences
             this.selectedProfile = prefs.selectedProfile || 'interview';
             this.selectedLanguage = prefs.selectedLanguage || 'en-US';
+            this.selectedOutputLanguage = prefs.selectedOutputLanguage || 'en-US';
+            this.selectedOutputProgrammingLanguage = prefs.selectedOutputProgrammingLanguage || 'python';
             this.selectedScreenshotInterval = prefs.selectedScreenshotInterval || '5';
             this.selectedImageQuality = prefs.selectedImageQuality || 'medium';
             this.layoutMode = config.layout || 'normal';
@@ -239,6 +247,15 @@ export class CheatingDaddyApp extends LitElement {
                 this.addNewResponse(data.message);
             });
         }
+
+        this.handleManualScreenshotStart = () => {
+            this.isManualScreenshotPending = true;
+        };
+        this.handleManualScreenshotEnd = () => {
+            this.isManualScreenshotPending = false;
+        };
+        window.addEventListener('manual-screenshot-start', this.handleManualScreenshotStart);
+        window.addEventListener('manual-screenshot-end', this.handleManualScreenshotEnd);
     }
 
     disconnectedCallback() {
@@ -250,6 +267,13 @@ export class CheatingDaddyApp extends LitElement {
             ipcRenderer.removeAllListeners('update-status');
             ipcRenderer.removeAllListeners('click-through-toggled');
             ipcRenderer.removeAllListeners('reconnect-failed');
+        }
+
+        if (this.handleManualScreenshotStart) {
+            window.removeEventListener('manual-screenshot-start', this.handleManualScreenshotStart);
+        }
+        if (this.handleManualScreenshotEnd) {
+            window.removeEventListener('manual-screenshot-end', this.handleManualScreenshotEnd);
         }
     }
 
@@ -343,7 +367,7 @@ export class CheatingDaddyApp extends LitElement {
             return;
         }
 
-        await cheatingDaddy.initializeGemini(this.selectedProfile, this.selectedLanguage);
+        await cheatingDaddy.initializeGemini(this.selectedProfile, this.selectedLanguage, this.selectedOutputLanguage);
         // Pass the screenshot interval as string (including 'manual' option)
         cheatingDaddy.startCapture(this.selectedScreenshotInterval, this.selectedImageQuality);
         this.responses = [];
@@ -368,6 +392,16 @@ export class CheatingDaddyApp extends LitElement {
     async handleLanguageChange(language) {
         this.selectedLanguage = language;
         await cheatingDaddy.storage.updatePreference('selectedLanguage', language);
+    }
+
+    async handleOutputLanguageChange(language) {
+        this.selectedOutputLanguage = language;
+        await cheatingDaddy.storage.updatePreference('selectedOutputLanguage', language);
+    }
+
+    async handleOutputProgrammingLanguageChange(language) {
+        this.selectedOutputProgrammingLanguage = language;
+        await cheatingDaddy.storage.updatePreference('selectedOutputProgrammingLanguage', language);
     }
 
     async handleScreenshotIntervalChange(interval) {
@@ -464,11 +498,15 @@ export class CheatingDaddyApp extends LitElement {
                     <customize-view
                         .selectedProfile=${this.selectedProfile}
                         .selectedLanguage=${this.selectedLanguage}
+                        .selectedOutputLanguage=${this.selectedOutputLanguage}
+                        .selectedOutputProgrammingLanguage=${this.selectedOutputProgrammingLanguage}
                         .selectedScreenshotInterval=${this.selectedScreenshotInterval}
                         .selectedImageQuality=${this.selectedImageQuality}
                         .layoutMode=${this.layoutMode}
                         .onProfileChange=${profile => this.handleProfileChange(profile)}
                         .onLanguageChange=${language => this.handleLanguageChange(language)}
+                        .onOutputLanguageChange=${language => this.handleOutputLanguageChange(language)}
+                        .onOutputProgrammingLanguageChange=${language => this.handleOutputProgrammingLanguageChange(language)}
                         .onScreenshotIntervalChange=${interval => this.handleScreenshotIntervalChange(interval)}
                         .onImageQualityChange=${quality => this.handleImageQualityChange(quality)}
                         .onLayoutModeChange=${layoutMode => this.handleLayoutModeChange(layoutMode)}
@@ -521,6 +559,7 @@ export class CheatingDaddyApp extends LitElement {
                         .currentView=${this.currentView}
                         .statusText=${this.statusText}
                         .startTime=${this.startTime}
+                        .isManualScreenshotPending=${this.isManualScreenshotPending}
                         .onCustomizeClick=${() => this.handleCustomizeClick()}
                         .onHelpClick=${() => this.handleHelpClick()}
                         .onHistoryClick=${() => this.handleHistoryClick()}

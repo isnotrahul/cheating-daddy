@@ -1,7 +1,10 @@
 import { html, css, LitElement } from '../../assets/lit-core-2.7.4.min.js';
+import { codeHighlightStyles } from '../styles/codeHighlightStyles.js';
 
 export class AssistantView extends LitElement {
-    static styles = css`
+    static styles = [
+        codeHighlightStyles,
+        css`
         :host {
             height: 100%;
             display: flex;
@@ -182,6 +185,34 @@ export class AssistantView extends LitElement {
             color: var(--placeholder-color);
         }
 
+        .mode-toggle {
+            display: flex;
+            gap: 6px;
+            align-items: center;
+        }
+
+        .mode-button {
+            background: transparent;
+            color: var(--text-secondary);
+            border: 1px solid var(--border-color);
+            padding: 4px 8px;
+            border-radius: 14px;
+            font-size: 11px;
+            font-weight: 500;
+            transition: all 0.1s ease;
+        }
+
+        .mode-button:hover {
+            background: var(--hover-background);
+            color: var(--text-color);
+        }
+
+        .mode-button.is-active {
+            background: var(--btn-primary-bg, #ffffff);
+            color: var(--btn-primary-text, #000000);
+            border-color: transparent;
+        }
+
         .nav-button {
             background: transparent;
             color: var(--text-secondary);
@@ -208,6 +239,10 @@ export class AssistantView extends LitElement {
             width: 18px;
             height: 18px;
             stroke: currentColor;
+        }
+
+        .nav-button.muted {
+            color: var(--error-color);
         }
 
         .response-counter {
@@ -245,76 +280,8 @@ export class AssistantView extends LitElement {
             flex-shrink: 0;
         }
 
-        .screen-answer-btn .usage-count {
-            font-size: 11px;
-            opacity: 0.7;
-            font-family: 'SF Mono', Monaco, monospace;
-        }
-
-        .screen-answer-btn-wrapper {
-            position: relative;
-        }
-
-        .screen-answer-btn-wrapper .tooltip {
-            position: absolute;
-            bottom: 100%;
-            right: 0;
-            margin-bottom: 8px;
-            background: var(--tooltip-bg, #1a1a1a);
-            color: var(--tooltip-text, #ffffff);
-            padding: 8px 12px;
-            border-radius: 6px;
-            font-size: 11px;
-            white-space: nowrap;
-            opacity: 0;
-            visibility: hidden;
-            transition: opacity 0.15s ease, visibility 0.15s ease;
-            pointer-events: none;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-            z-index: 100;
-        }
-
-        .screen-answer-btn-wrapper .tooltip::after {
-            content: '';
-            position: absolute;
-            top: 100%;
-            right: 16px;
-            border: 6px solid transparent;
-            border-top-color: var(--tooltip-bg, #1a1a1a);
-        }
-
-        .screen-answer-btn-wrapper:hover .tooltip {
-            opacity: 1;
-            visibility: visible;
-        }
-
-        .tooltip-row {
-            display: flex;
-            justify-content: space-between;
-            gap: 16px;
-            margin-bottom: 4px;
-        }
-
-        .tooltip-row:last-child {
-            margin-bottom: 0;
-        }
-
-        .tooltip-label {
-            opacity: 0.7;
-        }
-
-        .tooltip-value {
-            font-family: 'SF Mono', Monaco, monospace;
-        }
-
-        .tooltip-note {
-            margin-top: 6px;
-            padding-top: 6px;
-            border-top: 1px solid rgba(255,255,255,0.1);
-            opacity: 0.5;
-            font-size: 10px;
-        }
-    `;
+        `,
+    ];
 
     static properties = {
         responses: { type: Array },
@@ -322,8 +289,8 @@ export class AssistantView extends LitElement {
         selectedProfile: { type: String },
         onSendText: { type: Function },
         shouldAnimateResponse: { type: Boolean },
-        flashCount: { type: Number },
-        flashLiteCount: { type: Number },
+        audioMuted: { type: Boolean },
+        manualScreenshotMode: { type: String },
     };
 
     constructor() {
@@ -332,8 +299,8 @@ export class AssistantView extends LitElement {
         this.currentResponseIndex = -1;
         this.selectedProfile = 'interview';
         this.onSendText = () => {};
-        this.flashCount = 0;
-        this.flashLiteCount = 0;
+        this.audioMuted = false;
+        this.manualScreenshotMode = '';
     }
 
     getProfileNames() {
@@ -379,7 +346,7 @@ export class AssistantView extends LitElement {
     wrapWordsInSpans(html) {
         const parser = new DOMParser();
         const doc = parser.parseFromString(html, 'text/html');
-        const tagsToSkip = ['PRE'];
+        const tagsToSkip = ['PRE', 'CODE'];
 
         function wrap(node) {
             if (node.nodeType === Node.TEXT_NODE && node.textContent.trim() && !tagsToSkip.includes(node.parentNode.tagName)) {
@@ -451,8 +418,13 @@ export class AssistantView extends LitElement {
     connectedCallback() {
         super.connectedCallback();
 
-        // Load limits on mount
-        this.loadLimits();
+        if (window.cheatingDaddy && typeof window.cheatingDaddy.getAudioMuted === 'function') {
+            this.audioMuted = window.cheatingDaddy.getAudioMuted();
+        }
+
+        if (window.cheatingDaddy && typeof window.cheatingDaddy.getManualScreenshotMode === 'function') {
+            this.manualScreenshotMode = window.cheatingDaddy.getManualScreenshotMode() || '';
+        }
 
         // Set up IPC listeners for keyboard shortcuts
         if (window.require) {
@@ -522,27 +494,28 @@ export class AssistantView extends LitElement {
         }
     }
 
-    async loadLimits() {
-        if (window.cheatingDaddy?.storage?.getTodayLimits) {
-            const limits = await window.cheatingDaddy.storage.getTodayLimits();
-            this.flashCount = limits.flash?.count || 0;
-            this.flashLiteCount = limits.flashLite?.count || 0;
-        }
-    }
-
-    getTotalUsed() {
-        return this.flashCount + this.flashLiteCount;
-    }
-
-    getTotalAvailable() {
-        return 40; // 20 flash + 20 flash-lite
-    }
-
     async handleScreenAnswer() {
         if (window.captureManualScreenshot) {
             window.captureManualScreenshot();
-            // Reload limits after a short delay to catch the update
-            setTimeout(() => this.loadLimits(), 1000);
+        }
+    }
+
+    handleManualScreenshotModeSelect(mode) {
+        this.manualScreenshotMode = this.manualScreenshotMode === mode ? '' : mode;
+        if (window.cheatingDaddy && typeof window.cheatingDaddy.setManualScreenshotMode === 'function') {
+            window.cheatingDaddy.setManualScreenshotMode(this.manualScreenshotMode || null);
+        }
+    }
+
+    async handleToggleAudioMuted() {
+        const nextMuted = !this.audioMuted;
+        this.audioMuted = nextMuted;
+        if (window.cheatingDaddy && typeof window.cheatingDaddy.setAudioMuted === 'function') {
+            try {
+                await window.cheatingDaddy.setAudioMuted(nextMuted);
+            } catch (error) {
+                console.warn('Failed to update audio mute state:', error);
+            }
         }
     }
 
@@ -576,6 +549,11 @@ export class AssistantView extends LitElement {
             const renderedResponse = this.renderMarkdown(currentResponse);
             console.log('Rendered response:', renderedResponse);
             container.innerHTML = renderedResponse;
+            if (window.hljs) {
+                container.querySelectorAll('pre code').forEach(block => {
+                    window.hljs.highlightElement(block);
+                });
+            }
             // Show all words immediately (no animation)
             if (this.shouldAnimateResponse) {
                 this.dispatchEvent(new CustomEvent('response-animation-complete', { bubbles: true, composed: true }));
@@ -606,28 +584,57 @@ export class AssistantView extends LitElement {
                     </svg>
                 </button>
 
-                <input type="text" id="textInput" placeholder="Type a message to the AI..." @keydown=${this.handleTextKeydown} />
-
-                <div class="screen-answer-btn-wrapper">
-                    <div class="tooltip">
-                        <div class="tooltip-row">
-                            <span class="tooltip-label">Flash</span>
-                            <span class="tooltip-value">${this.flashCount}/20</span>
-                        </div>
-                        <div class="tooltip-row">
-                            <span class="tooltip-label">Flash Lite</span>
-                            <span class="tooltip-value">${this.flashLiteCount}/20</span>
-                        </div>
-                        <div class="tooltip-note">Resets every 24 hours</div>
-                    </div>
-                    <button class="screen-answer-btn" @click=${this.handleScreenAnswer}>
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                            <path d="M15.98 1.804a1 1 0 0 0-1.96 0l-.24 1.192a1 1 0 0 1-.784.785l-1.192.238a1 1 0 0 0 0 1.962l1.192.238a1 1 0 0 1 .785.785l.238 1.192a1 1 0 0 0 1.962 0l.238-1.192a1 1 0 0 1 .785-.785l1.192-.238a1 1 0 0 0 0-1.962l-1.192-.238a1 1 0 0 1-.785-.785l-.238-1.192ZM6.949 5.684a1 1 0 0 0-1.898 0l-.683 2.051a1 1 0 0 1-.633.633l-2.051.683a1 1 0 0 0 0 1.898l2.051.684a1 1 0 0 1 .633.632l.683 2.051a1 1 0 0 0 1.898 0l.683-2.051a1 1 0 0 1 .633-.633l2.051-.683a1 1 0 0 0 0-1.898l-2.051-.683a1 1 0 0 1-.633-.633L6.95 5.684ZM13.949 13.684a1 1 0 0 0-1.898 0l-.184.551a1 1 0 0 1-.632.633l-.551.183a1 1 0 0 0 0 1.898l.551.183a1 1 0 0 1 .633.633l.183.551a1 1 0 0 0 1.898 0l.184-.551a1 1 0 0 1 .632-.633l.551-.183a1 1 0 0 0 0-1.898l-.551-.184a1 1 0 0 1-.633-.632l-.183-.551Z" />
-                        </svg>
-                        <span>Analyze screen</span>
-                        <span class="usage-count">(${this.getTotalUsed()}/${this.getTotalAvailable()})</span>
+                <div class="mode-toggle">
+                    <button
+                        class="mode-button ${this.manualScreenshotMode === 'optimization' ? 'is-active' : ''}"
+                        @click=${() => this.handleManualScreenshotModeSelect('optimization')}
+                    >
+                        Optimize
+                    </button>
+                    <button
+                        class="mode-button ${this.manualScreenshotMode === 'review' ? 'is-active' : ''}"
+                        @click=${() => this.handleManualScreenshotModeSelect('review')}
+                    >
+                        Review
+                    </button>
+                    <button
+                        class="mode-button ${this.manualScreenshotMode === 'design' ? 'is-active' : ''}"
+                        @click=${() => this.handleManualScreenshotModeSelect('design')}
+                    >
+                        Design
                     </button>
                 </div>
+
+                <input type="text" id="textInput" placeholder="Type a message to the AI..." @keydown=${this.handleTextKeydown} />
+
+                <button
+                    class="nav-button ${this.audioMuted ? 'muted' : ''}"
+                    title=${this.audioMuted ? 'Unmute audio' : 'Mute audio'}
+                    aria-pressed=${this.audioMuted}
+                    @click=${this.handleToggleAudioMuted}
+                >
+                    ${this.audioMuted
+                        ? html`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+                              <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path>
+                              <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+                              <line x1="12" y1="19" x2="12" y2="23"></line>
+                              <line x1="8" y1="23" x2="16" y2="23"></line>
+                              <line x1="4" y1="4" x2="20" y2="20"></line>
+                          </svg>`
+                        : html`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+                              <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path>
+                              <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+                              <line x1="12" y1="19" x2="12" y2="23"></line>
+                              <line x1="8" y1="23" x2="16" y2="23"></line>
+                          </svg>`}
+                </button>
+
+                <button class="screen-answer-btn" @click=${this.handleScreenAnswer}>
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                        <path d="M15.98 1.804a1 1 0 0 0-1.96 0l-.24 1.192a1 1 0 0 1-.784.785l-1.192.238a1 1 0 0 0 0 1.962l1.192.238a1 1 0 0 1 .785.785l.238 1.192a1 1 0 0 0 1.962 0l.238-1.192a1 1 0 0 1 .785-.785l1.192-.238a1 1 0 0 0 0-1.962l-1.192-.238a1 1 0 0 1-.785-.785l-.238-1.192ZM6.949 5.684a1 1 0 0 0-1.898 0l-.683 2.051a1 1 0 0 1-.633.633l-2.051.683a1 1 0 0 0 0 1.898l2.051.684a1 1 0 0 1 .633.632l.683 2.051a1 1 0 0 0 1.898 0l.683-2.051a1 1 0 0 1 .633-.633l2.051-.683a1 1 0 0 0 0-1.898l-2.051-.683a1 1 0 0 1-.633-.633L6.95 5.684ZM13.949 13.684a1 1 0 0 0-1.898 0l-.184.551a1 1 0 0 1-.632.633l-.551.183a1 1 0 0 0 0 1.898l.551.183a1 1 0 0 1 .633.633l.183.551a1 1 0 0 0 1.898 0l.184-.551a1 1 0 0 1 .632-.633l.551-.183a1 1 0 0 0 0-1.898l-.551-.184a1 1 0 0 1-.633-.632l-.183-.551Z" />
+                    </svg>
+                    <span>Analyze screen</span>
+                </button>
             </div>
         `;
     }
