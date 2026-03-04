@@ -317,10 +317,17 @@ export class AssistantView extends LitElement {
     }
 
     getCurrentResponse() {
-        const profileNames = this.getProfileNames();
+        const profileNamesZh = {
+            interview: '求职面试',
+            sales: '销售通话',
+            meeting: '商务会议',
+            presentation: '演讲汇报',
+            negotiation: '商务谈判',
+            exam: '考试答题',
+        };
         return this.responses.length > 0 && this.currentResponseIndex >= 0
             ? this.responses[this.currentResponseIndex]
-            : `Hey, Im listening to your ${profileNames[this.selectedProfile] || 'session'}?`;
+            : `我正在听你的${profileNamesZh[this.selectedProfile] || '会话'}。`;
     }
 
     renderMarkdown(content) {
