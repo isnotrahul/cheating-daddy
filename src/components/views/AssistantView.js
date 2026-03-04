@@ -426,6 +426,12 @@ export class AssistantView extends LitElement {
             this.manualScreenshotMode = window.cheatingDaddy.getManualScreenshotMode() || '';
         }
 
+        this.handleManualScreenshotModeChanged = event => {
+            this.manualScreenshotMode = event?.detail?.mode || '';
+            this.requestUpdate();
+        };
+        window.addEventListener('manual-screenshot-mode-changed', this.handleManualScreenshotModeChanged);
+
         // Set up IPC listeners for keyboard shortcuts
         if (window.require) {
             const { ipcRenderer } = window.require('electron');
@@ -459,6 +465,10 @@ export class AssistantView extends LitElement {
 
     disconnectedCallback() {
         super.disconnectedCallback();
+
+        if (this.handleManualScreenshotModeChanged) {
+            window.removeEventListener('manual-screenshot-mode-changed', this.handleManualScreenshotModeChanged);
+        }
 
         // Clean up IPC listeners
         if (window.require) {
@@ -501,6 +511,12 @@ export class AssistantView extends LitElement {
     }
 
     handleManualScreenshotModeSelect(mode) {
+        if (window.cheatingDaddy && typeof window.cheatingDaddy.toggleManualScreenshotMode === 'function') {
+            const activeMode = window.cheatingDaddy.toggleManualScreenshotMode(mode);
+            this.manualScreenshotMode = activeMode || '';
+            return;
+        }
+
         this.manualScreenshotMode = this.manualScreenshotMode === mode ? '' : mode;
         if (window.cheatingDaddy && typeof window.cheatingDaddy.setManualScreenshotMode === 'function') {
             window.cheatingDaddy.setManualScreenshotMode(this.manualScreenshotMode || null);

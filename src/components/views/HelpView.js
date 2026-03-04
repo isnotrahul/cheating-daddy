@@ -129,6 +129,9 @@ export class HelpView extends LitElement {
             nextResponse: isMac ? 'Cmd+]' : 'Ctrl+]',
             scrollUp: isMac ? 'Cmd+Shift+Up' : 'Ctrl+Shift+Up',
             scrollDown: isMac ? 'Cmd+Shift+Down' : 'Ctrl+Shift+Down',
+            designMode: isMac ? 'Cmd+D' : 'Ctrl+D',
+            optimizeMode: isMac ? 'Cmd+O' : 'Ctrl+O',
+            reviewMode: isMac ? 'Cmd+R' : 'Ctrl+R',
         };
     }
 
@@ -153,6 +156,9 @@ export class HelpView extends LitElement {
             ['Next Response', this.keybinds.nextResponse],
             ['Scroll Response Up', this.keybinds.scrollUp],
             ['Scroll Response Down', this.keybinds.scrollDown],
+            ['Toggle Design Mode', this.keybinds.designMode],
+            ['Toggle Optimize Mode', this.keybinds.optimizeMode],
+            ['Toggle Review Mode', this.keybinds.reviewMode],
         ];
 
         return html`

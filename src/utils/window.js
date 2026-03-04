@@ -114,6 +114,9 @@ function getDefaultKeybinds() {
         nextResponse: isMac ? 'Cmd+]' : 'Ctrl+]',
         scrollUp: isMac ? 'Cmd+Shift+Up' : 'Ctrl+Shift+Up',
         scrollDown: isMac ? 'Cmd+Shift+Down' : 'Ctrl+Shift+Down',
+        designMode: isMac ? 'Cmd+D' : 'Ctrl+D',
+        optimizeMode: isMac ? 'Cmd+O' : 'Ctrl+O',
+        reviewMode: isMac ? 'Cmd+R' : 'Ctrl+R',
         emergencyErase: isMac ? 'Cmd+Shift+E' : 'Ctrl+Shift+E',
     };
 }
@@ -276,6 +279,29 @@ function updateGlobalShortcuts(keybinds, mainWindow, sendToRenderer, geminiSessi
             console.error(`Failed to register scrollDown (${keybinds.scrollDown}):`, error);
         }
     }
+
+    const modeShortcuts = {
+        designMode: 'design',
+        optimizeMode: 'optimization',
+        reviewMode: 'review',
+    };
+
+    Object.entries(modeShortcuts).forEach(([action, mode]) => {
+        const keybind = keybinds[action];
+        if (!keybind) return;
+
+        try {
+            globalShortcut.register(keybind, () => {
+                console.log(`${action} shortcut triggered`);
+                mainWindow.webContents.executeJavaScript(`
+                    cheatingDaddy.handleShortcut('mode:${mode}');
+                `);
+            });
+            console.log(`Registered ${action}: ${keybind}`);
+        } catch (error) {
+            console.error(`Failed to register ${action} (${keybind}):`, error);
+        }
+    });
 
     // Register emergency erase shortcut
     if (keybinds.emergencyErase) {

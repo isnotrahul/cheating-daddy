@@ -603,16 +603,41 @@ const MANUAL_SCREENSHOT_MODE_PROMPTS = {
         zh: programmingLanguage => `题目是一道Oriented-Object Design.请你用中文回答!
 按以下结构中文回答:
 1. 翻译: 直接完整翻译题目(不要bullet point)
-2. 思路: 1句话概括你的思路和design pattern
-3. 代码: 用 ${programmingLanguage} 实现多个class (不要抽象类). 要易于理解且比较optimal.用简易的单行注释.
-4. 复杂度: 告诉我每个class主要func的时间复杂度`,
+2. 思路: 1句话概括你的思路和常见design pattern if applicable (常见有strategy/factory method/observer/decorator/adapter). 最后简单说一下每一个class要有哪些主要的功能.
+3. 代码: 用 ${programmingLanguage} 实现必要的classes. 要易于理解.只有重要的地方提供单行注释, class不需要写注释. 尽量少使用炫酷的写法, 比如def __eq__, __hash__, Enum等.
+4. 其他: 需要提供一个简单的测试用例 (10-15行左右, 不用特别全面). 面试时间是45分钟, 提供的核心代码不要过于复杂了, 大约80行左右.`,
     },
 };
 
+function normalizeManualScreenshotMode(mode) {
+    const normalized = typeof mode === 'string' ? mode.toLowerCase().trim() : '';
+    if (normalized === 'design' || normalized === 'review' || normalized === 'optimization') {
+        return normalized;
+    }
+    return null;
+}
+
+function notifyManualScreenshotModeChanged() {
+    window.dispatchEvent(
+        new CustomEvent('manual-screenshot-mode-changed', {
+            detail: { mode: manualScreenshotMode }
+        })
+    );
+}
 
 function setManualScreenshotMode(mode) {
-    manualScreenshotMode = mode;
+    manualScreenshotMode = normalizeManualScreenshotMode(mode);
+    notifyManualScreenshotModeChanged();
     return manualScreenshotMode;
+}
+
+function toggleManualScreenshotMode(mode) {
+    const normalizedMode = normalizeManualScreenshotMode(mode);
+    if (!normalizedMode) {
+        return setManualScreenshotMode(null);
+    }
+
+    return setManualScreenshotMode(manualScreenshotMode === normalizedMode ? null : normalizedMode);
 }
 
 function getManualScreenshotMode() {
@@ -886,6 +911,14 @@ ipcRenderer.on('clear-sensitive-data', async () => {
 // Handle shortcuts based on current view
 function handleShortcut(shortcutKey) {
     const currentView = cheatingDaddy.getCurrentView();
+
+    if (typeof shortcutKey === 'string' && shortcutKey.startsWith('mode:')) {
+        if (currentView === 'assistant') {
+            const mode = shortcutKey.replace('mode:', '');
+            toggleManualScreenshotMode(mode);
+        }
+        return;
+    }
 
     if (shortcutKey === 'ctrl+enter' || shortcutKey === 'cmd+enter') {
         if (currentView === 'main') {
@@ -1243,6 +1276,7 @@ const cheatingDaddy = {
     sendTextMessage,
     handleShortcut,
     setManualScreenshotMode,
+    toggleManualScreenshotMode,
     getManualScreenshotMode,
     setAudioMuted,
     getAudioMuted,

@@ -870,6 +870,9 @@ export class CustomizeView extends LitElement {
             nextResponse: isMac ? 'Cmd+]' : 'Ctrl+]',
             scrollUp: isMac ? 'Cmd+Shift+Up' : 'Ctrl+Shift+Up',
             scrollDown: isMac ? 'Cmd+Shift+Down' : 'Ctrl+Shift+Down',
+            designMode: isMac ? 'Cmd+D' : 'Ctrl+D',
+            optimizeMode: isMac ? 'Cmd+O' : 'Ctrl+O',
+            reviewMode: isMac ? 'Cmd+R' : 'Ctrl+R',
         };
     }
 
@@ -954,6 +957,21 @@ export class CustomizeView extends LitElement {
                 key: 'scrollDown',
                 name: 'Scroll Response Down',
                 description: 'Scroll the AI response content down',
+            },
+            {
+                key: 'designMode',
+                name: 'Toggle Design Mode',
+                description: 'Toggle manual screenshot mode between Design and General',
+            },
+            {
+                key: 'optimizeMode',
+                name: 'Toggle Optimize Mode',
+                description: 'Toggle manual screenshot mode between Optimize and General',
+            },
+            {
+                key: 'reviewMode',
+                name: 'Toggle Review Mode',
+                description: 'Toggle manual screenshot mode between Review and General',
             },
         ];
     }
