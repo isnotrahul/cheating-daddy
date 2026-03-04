@@ -870,6 +870,8 @@ export class CustomizeView extends LitElement {
             nextResponse: isMac ? 'Cmd+]' : 'Ctrl+]',
             scrollUp: isMac ? 'Cmd+Shift+Up' : 'Ctrl+Shift+Up',
             scrollDown: isMac ? 'Cmd+Shift+Down' : 'Ctrl+Shift+Down',
+            scrollLeft: isMac ? 'Cmd+Shift+Left' : 'Ctrl+Shift+Left',
+            scrollRight: isMac ? 'Cmd+Shift+Right' : 'Ctrl+Shift+Right',
             designMode: isMac ? 'Cmd+D' : 'Ctrl+D',
             optimizeMode: isMac ? 'Cmd+O' : 'Ctrl+O',
             reviewMode: isMac ? 'Cmd+R' : 'Ctrl+R',
@@ -957,6 +959,16 @@ export class CustomizeView extends LitElement {
                 key: 'scrollDown',
                 name: 'Scroll Response Down',
                 description: 'Scroll the AI response content down',
+            },
+            {
+                key: 'scrollLeft',
+                name: 'Scroll Code Left',
+                description: 'Scroll horizontally inside long code blocks to the left',
+            },
+            {
+                key: 'scrollRight',
+                name: 'Scroll Code Right',
+                description: 'Scroll horizontally inside long code blocks to the right',
             },
             {
                 key: 'designMode',

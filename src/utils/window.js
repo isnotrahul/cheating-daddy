@@ -114,6 +114,8 @@ function getDefaultKeybinds() {
         nextResponse: isMac ? 'Cmd+]' : 'Ctrl+]',
         scrollUp: isMac ? 'Cmd+Shift+Up' : 'Ctrl+Shift+Up',
         scrollDown: isMac ? 'Cmd+Shift+Down' : 'Ctrl+Shift+Down',
+        scrollLeft: isMac ? 'Cmd+Shift+Left' : 'Ctrl+Shift+Left',
+        scrollRight: isMac ? 'Cmd+Shift+Right' : 'Ctrl+Shift+Right',
         designMode: isMac ? 'Cmd+D' : 'Ctrl+D',
         optimizeMode: isMac ? 'Cmd+O' : 'Ctrl+O',
         reviewMode: isMac ? 'Cmd+R' : 'Ctrl+R',
@@ -277,6 +279,30 @@ function updateGlobalShortcuts(keybinds, mainWindow, sendToRenderer, geminiSessi
             console.log(`Registered scrollDown: ${keybinds.scrollDown}`);
         } catch (error) {
             console.error(`Failed to register scrollDown (${keybinds.scrollDown}):`, error);
+        }
+    }
+
+    if (keybinds.scrollLeft) {
+        try {
+            globalShortcut.register(keybinds.scrollLeft, () => {
+                console.log('Scroll left shortcut triggered');
+                sendToRenderer('scroll-response-left');
+            });
+            console.log(`Registered scrollLeft: ${keybinds.scrollLeft}`);
+        } catch (error) {
+            console.error(`Failed to register scrollLeft (${keybinds.scrollLeft}):`, error);
+        }
+    }
+
+    if (keybinds.scrollRight) {
+        try {
+            globalShortcut.register(keybinds.scrollRight, () => {
+                console.log('Scroll right shortcut triggered');
+                sendToRenderer('scroll-response-right');
+            });
+            console.log(`Registered scrollRight: ${keybinds.scrollRight}`);
+        } catch (error) {
+            console.error(`Failed to register scrollRight (${keybinds.scrollRight}):`, error);
         }
     }
 

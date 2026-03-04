@@ -98,6 +98,7 @@ export class AssistantView extends LitElement {
             border-radius: 3px;
             padding: 12px;
             overflow-x: auto;
+            scroll-behavior: smooth;
             margin: 0.8em 0;
         }
 
@@ -301,6 +302,7 @@ export class AssistantView extends LitElement {
         this.onSendText = () => {};
         this.audioMuted = false;
         this.manualScreenshotMode = '';
+        this.activeHorizontalScrollTarget = null;
     }
 
     getProfileNames() {
@@ -415,6 +417,61 @@ export class AssistantView extends LitElement {
         }
     }
 
+    _isHorizontallyScrollable(element) {
+        return !!element && element.scrollWidth > element.clientWidth + 1;
+    }
+
+    _isVisibleInContainer(element, container) {
+        if (!element || !container) return false;
+        const elementRect = element.getBoundingClientRect();
+        const containerRect = container.getBoundingClientRect();
+        return elementRect.bottom > containerRect.top && elementRect.top < containerRect.bottom;
+    }
+
+    _pickHorizontalScrollTarget(container) {
+        if (!container) return null;
+
+        if (this._isHorizontallyScrollable(this.activeHorizontalScrollTarget) && container.contains(this.activeHorizontalScrollTarget)) {
+            return this.activeHorizontalScrollTarget;
+        }
+
+        const codeBlocks = Array.from(container.querySelectorAll('pre'));
+        const hovered = codeBlocks.find(block => block.matches(':hover') && this._isHorizontallyScrollable(block));
+        if (hovered) return hovered;
+
+        const visibleOverflowing = codeBlocks.find(block => this._isHorizontallyScrollable(block) && this._isVisibleInContainer(block, container));
+        if (visibleOverflowing) return visibleOverflowing;
+
+        return this._isHorizontallyScrollable(container) ? container : null;
+    }
+
+    scrollResponseHorizontal(direction) {
+        const container = this.shadowRoot.querySelector('.response-container');
+        if (!container) return;
+
+        const target = this._pickHorizontalScrollTarget(container);
+        if (!target) return;
+
+        const scrollAmount = Math.max(60, Math.floor(target.clientWidth * 0.24));
+        if (typeof target.scrollBy === 'function') {
+            target.scrollBy({ left: direction * scrollAmount, behavior: 'smooth' });
+        } else {
+            target.scrollLeft += direction * scrollAmount;
+        }
+
+        if (target.tagName === 'PRE') {
+            this.activeHorizontalScrollTarget = target;
+        }
+    }
+
+    scrollResponseLeft() {
+        this.scrollResponseHorizontal(-1);
+    }
+
+    scrollResponseRight() {
+        this.scrollResponseHorizontal(1);
+    }
+
     connectedCallback() {
         super.connectedCallback();
 
@@ -456,35 +513,22 @@ export class AssistantView extends LitElement {
                 this.scrollResponseDown();
             };
 
+            this.handleScrollLeft = () => {
+                console.log('Received scroll-response-left message');
+                this.scrollResponseLeft();
+            };
+
+            this.handleScrollRight = () => {
+                console.log('Received scroll-response-right message');
+                this.scrollResponseRight();
+            };
+
             ipcRenderer.on('navigate-previous-response', this.handlePreviousResponse);
             ipcRenderer.on('navigate-next-response', this.handleNextResponse);
             ipcRenderer.on('scroll-response-up', this.handleScrollUp);
             ipcRenderer.on('scroll-response-down', this.handleScrollDown);
-        }
-    }
-
-    disconnectedCallback() {
-        super.disconnectedCallback();
-
-        if (this.handleManualScreenshotModeChanged) {
-            window.removeEventListener('manual-screenshot-mode-changed', this.handleManualScreenshotModeChanged);
-        }
-
-        // Clean up IPC listeners
-        if (window.require) {
-            const { ipcRenderer } = window.require('electron');
-            if (this.handlePreviousResponse) {
-                ipcRenderer.removeListener('navigate-previous-response', this.handlePreviousResponse);
-            }
-            if (this.handleNextResponse) {
-                ipcRenderer.removeListener('navigate-next-response', this.handleNextResponse);
-            }
-            if (this.handleScrollUp) {
-                ipcRenderer.removeListener('scroll-response-up', this.handleScrollUp);
-            }
-            if (this.handleScrollDown) {
-                ipcRenderer.removeListener('scroll-response-down', this.handleScrollDown);
-            }
+            ipcRenderer.on('scroll-response-left', this.handleScrollLeft);
+            ipcRenderer.on('scroll-response-right', this.handleScrollRight);
         }
     }
 
@@ -546,7 +590,52 @@ export class AssistantView extends LitElement {
 
     firstUpdated() {
         super.firstUpdated();
+        const container = this.shadowRoot.querySelector('.response-container');
+        if (container) {
+            this.handleResponseContainerPointerDown = event => {
+                const targetElement = event.target instanceof Element ? event.target : null;
+                const codeBlock = targetElement ? targetElement.closest('pre') : null;
+                this.activeHorizontalScrollTarget = codeBlock || null;
+            };
+            container.addEventListener('pointerdown', this.handleResponseContainerPointerDown);
+        }
         this.updateResponseContent();
+    }
+
+    disconnectedCallback() {
+        super.disconnectedCallback();
+
+        if (this.handleManualScreenshotModeChanged) {
+            window.removeEventListener('manual-screenshot-mode-changed', this.handleManualScreenshotModeChanged);
+        }
+
+        const container = this.shadowRoot?.querySelector('.response-container');
+        if (container && this.handleResponseContainerPointerDown) {
+            container.removeEventListener('pointerdown', this.handleResponseContainerPointerDown);
+        }
+
+        // Clean up IPC listeners
+        if (window.require) {
+            const { ipcRenderer } = window.require('electron');
+            if (this.handlePreviousResponse) {
+                ipcRenderer.removeListener('navigate-previous-response', this.handlePreviousResponse);
+            }
+            if (this.handleNextResponse) {
+                ipcRenderer.removeListener('navigate-next-response', this.handleNextResponse);
+            }
+            if (this.handleScrollUp) {
+                ipcRenderer.removeListener('scroll-response-up', this.handleScrollUp);
+            }
+            if (this.handleScrollDown) {
+                ipcRenderer.removeListener('scroll-response-down', this.handleScrollDown);
+            }
+            if (this.handleScrollLeft) {
+                ipcRenderer.removeListener('scroll-response-left', this.handleScrollLeft);
+            }
+            if (this.handleScrollRight) {
+                ipcRenderer.removeListener('scroll-response-right', this.handleScrollRight);
+            }
+        }
     }
 
     updated(changedProperties) {
@@ -565,6 +654,7 @@ export class AssistantView extends LitElement {
             const renderedResponse = this.renderMarkdown(currentResponse);
             console.log('Rendered response:', renderedResponse);
             container.innerHTML = renderedResponse;
+            this.activeHorizontalScrollTarget = null;
             if (window.hljs) {
                 container.querySelectorAll('pre code').forEach(block => {
                     window.hljs.highlightElement(block);
