@@ -1338,6 +1338,7 @@ export class CustomizeView extends LitElement {
         this.backgroundTransparency = parseFloat(e.target.value);
         await cheatingDaddy.storage.updatePreference('backgroundTransparency', this.backgroundTransparency);
         this.updateBackgroundAppearance();
+        this.applyWindowOpacity();
         this.requestUpdate();
     }
 
@@ -1347,9 +1348,27 @@ export class CustomizeView extends LitElement {
         cheatingDaddy.theme.applyBackgrounds(colors.background, this.backgroundTransparency);
     }
 
+    async applyWindowOpacity() {
+        if (!window.require) return;
+
+        try {
+            const { ipcRenderer } = window.require('electron');
+            await ipcRenderer.invoke('update-window-opacity', this.getEffectiveOpacity());
+        } catch (error) {
+            console.warn('Failed to update window opacity:', error);
+        }
+    }
+
+    getEffectiveOpacity() {
+        const rawTransparency = Number.isFinite(Number(this.backgroundTransparency)) ? Number(this.backgroundTransparency) : 0.8;
+        const clampedTransparency = Math.max(0, Math.min(1, rawTransparency));
+        return 0.9 + clampedTransparency * 0.1; // 0-100% slider -> 0-10% real transparency
+    }
+
     // Keep old function name for backwards compatibility
     updateBackgroundTransparency() {
         this.updateBackgroundAppearance();
+        this.applyWindowOpacity();
     }
 
     async handleFontSizeChange(e) {

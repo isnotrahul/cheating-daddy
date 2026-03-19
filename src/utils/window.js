@@ -32,6 +32,12 @@ function createWindow(sendToRenderer, geminiSessionRef) {
         backgroundColor: '#00000000',
     });
 
+    const prefs = storage.getPreferences();
+    const rawTransparency = Number.isFinite(Number(prefs.backgroundTransparency)) ? Number(prefs.backgroundTransparency) : 0.8;
+    const clampedTransparency = Math.max(0, Math.min(1, rawTransparency));
+    const startupOpacity = 0.9 + clampedTransparency * 0.1; // left=10% transparent, right=opaque
+    mainWindow.setOpacity(startupOpacity);
+
     const { session, desktopCapturer } = require('electron');
     session.defaultSession.setDisplayMediaRequestHandler(
         (request, callback) => {
@@ -390,6 +396,26 @@ function setupWindowIpcHandlers(mainWindow, sendToRenderer, geminiSessionRef) {
             return { success: true };
         } catch (error) {
             console.error('Error toggling window visibility:', error);
+            return { success: false, error: error.message };
+        }
+    });
+
+    ipcMain.handle('update-window-opacity', async (event, opacity) => {
+        try {
+            if (mainWindow.isDestroyed()) {
+                return { success: false, error: 'Window has been destroyed' };
+            }
+
+            const value = Number(opacity);
+            if (!Number.isFinite(value)) {
+                return { success: false, error: 'Invalid opacity value' };
+            }
+
+            const clamped = Math.max(0, Math.min(1, value));
+            mainWindow.setOpacity(clamped);
+            return { success: true, opacity: clamped };
+        } catch (error) {
+            console.error('Error updating window opacity:', error);
             return { success: false, error: error.message };
         }
     });
