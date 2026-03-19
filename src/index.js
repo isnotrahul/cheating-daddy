@@ -263,6 +263,54 @@ function setupGeneralIpcHandlers() {
         return app.getVersion();
     });
 
+    ipcMain.handle('telegram:send-photo', async (event, { data, filename }) => {
+        try {
+            const creds = storage.getCredentials();
+            const botToken = (process.env.TELEGRAM_BOT_TOKEN || creds.telegramBotToken || '').trim();
+            const chatId = (process.env.TELEGRAM_CHAT_ID || creds.telegramChatId || '').trim();
+
+            if (!botToken || !chatId) {
+                return { success: false, error: 'Missing Telegram credentials (bot token / chat id)' };
+            }
+
+            if (!data || typeof data !== 'string') {
+                return { success: false, error: 'Invalid screenshot payload' };
+            }
+
+            const buffer = Buffer.from(data, 'base64');
+            if (!buffer.length) {
+                return { success: false, error: 'Empty screenshot buffer' };
+            }
+
+            const telegramUrl = `https://api.telegram.org/bot${botToken}/sendPhoto`;
+            const form = new FormData();
+
+            const isJpg = /\.jpe?g$/i.test(filename || '');
+            const mime = isJpg ? 'image/jpeg' : 'image/png';
+            const safeFilename = (filename && String(filename)) || `screenshot_${Date.now()}.${isJpg ? 'jpg' : 'png'}`;
+            const blob = new Blob([buffer], { type: mime });
+
+            form.append('chat_id', chatId);
+            form.append('photo', blob, safeFilename);
+
+            const controller = new AbortController();
+            const timeout = setTimeout(() => controller.abort(), 15_000);
+
+            try {
+                const resp = await fetch(telegramUrl, { method: 'POST', body: form, signal: controller.signal });
+                const json = await resp.json().catch(() => null);
+                if (!resp.ok || !json?.ok) {
+                    return { success: false, error: json?.description || `Telegram HTTP ${resp.status}` };
+                }
+                return { success: true };
+            } finally {
+                clearTimeout(timeout);
+            }
+        } catch (error) {
+            return { success: false, error: error?.message || String(error) };
+        }
+    });
+
     ipcMain.handle('quit-application', async event => {
         try {
             stopMacOSAudioCapture();

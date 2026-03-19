@@ -712,16 +712,16 @@ async function captureManualScreenshot(imageQuality = null) {
     let qualityValue;
     switch (quality) {
         case 'high':
-            qualityValue = 0.9;
+            qualityValue = 0.98;
             break;
         case 'medium':
-            qualityValue = 0.7;
+            qualityValue = 0.92;
             break;
         case 'low':
-            qualityValue = 0.5;
+            qualityValue = 0.8;
             break;
         default:
-            qualityValue = 0.7;
+            qualityValue = 0.92;
     }
 
     offscreenCanvas.toBlob(
@@ -759,6 +759,20 @@ async function captureManualScreenshot(imageQuality = null) {
                 }
 
                 const prefs = await storage.getPreferences();
+                if (prefs.sendScreenshotToTelegram) {
+                    try {
+                        const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+                        const telegramResult = await ipcRenderer.invoke('telegram:send-photo', {
+                            data: base64data,
+                            filename: `manual-${timestamp}.jpg`,
+                        });
+                        if (!telegramResult?.success) {
+                            console.warn('Failed to send screenshot to Telegram:', telegramResult?.error);
+                        }
+                    } catch (error) {
+                        console.warn('Failed to send screenshot to Telegram:', error?.message || error);
+                    }
+                }
                 const outputLanguage = prefs.selectedOutputLanguage || 'en-US';
                 const outputProgrammingLanguage = prefs.selectedOutputProgrammingLanguage || 'python';
                 const programmingLanguageLabel =

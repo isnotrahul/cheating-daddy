@@ -52,6 +52,38 @@ A real-time AI assistant that provides contextual help during video calls, inter
 - **Windows**: Loopback audio capture
 - **Linux**: Microphone input
 
+## Telegram（可选）：把手动截图转发到 Telegram
+
+当你在应用里触发**手动截图**（例如快捷键截图用于分析）时，可以选择把同一张截图同步发送到 Telegram。
+
+### 配置方式 A：环境变量（推荐）
+
+启动前设置：
+
+- `TELEGRAM_BOT_TOKEN`
+- `TELEGRAM_CHAT_ID`
+
+并把偏好开关打开（见下方“开启开关”）。
+
+### 配置方式 B：写入本地 credentials
+
+编辑配置目录里的 `credentials.json`，增加/填写：
+
+- `telegramBotToken`
+- `telegramChatId`
+
+配置目录位置：
+
+- **macOS**: `~/Library/Application Support/cheating-daddy-config/`
+- **Windows**: `~/AppData/Roaming/cheating-daddy-config/`
+- **Linux**: `~/.config/cheating-daddy-config/`
+
+### 开启开关
+
+编辑同一目录下的 `preferences.json`：
+
+- `sendScreenshotToTelegram`: 设为 `true`
+
 ## Requirements
 
 - Electron-compatible OS (macOS, Windows, Linux)
