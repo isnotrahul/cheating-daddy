@@ -266,12 +266,6 @@ function setupGeneralIpcHandlers() {
     ipcMain.handle('telegram:send-photo', async (event, { data, filename }) => {
         try {
             const creds = storage.getCredentials();
-            const botToken = (process.env.TELEGRAM_BOT_TOKEN || creds.telegramBotToken || '').trim();
-            const chatId = (process.env.TELEGRAM_CHAT_ID || creds.telegramChatId || '').trim();
-
-            if (!botToken || !chatId) {
-                return { success: false, error: 'Missing Telegram credentials (bot token / chat id)' };
-            }
 
             if (!data || typeof data !== 'string') {
                 return { success: false, error: 'Invalid screenshot payload' };
@@ -282,30 +276,58 @@ function setupGeneralIpcHandlers() {
                 return { success: false, error: 'Empty screenshot buffer' };
             }
 
-            const telegramUrl = `https://api.telegram.org/bot${botToken}/sendPhoto`;
-            const form = new FormData();
-
             const isJpg = /\.jpe?g$/i.test(filename || '');
             const mime = isJpg ? 'image/jpeg' : 'image/png';
             const safeFilename = (filename && String(filename)) || `screenshot_${Date.now()}.${isJpg ? 'jpg' : 'png'}`;
             const blob = new Blob([buffer], { type: mime });
 
-            form.append('chat_id', chatId);
-            form.append('photo', blob, safeFilename);
+            const targets = Array.isArray(creds.telegramTargets) ? creds.telegramTargets : [];
+            const eligibleTargets = targets.filter(target => {
+                if (!target || !target.botToken || !target.chatId) return false;
+                if (target.enabled === false) return false;
+                return target.selected === true;
+            });
 
-            const controller = new AbortController();
-            const timeout = setTimeout(() => controller.abort(), 15_000);
-
-            try {
-                const resp = await fetch(telegramUrl, { method: 'POST', body: form, signal: controller.signal });
-                const json = await resp.json().catch(() => null);
-                if (!resp.ok || !json?.ok) {
-                    return { success: false, error: json?.description || `Telegram HTTP ${resp.status}` };
-                }
-                return { success: true };
-            } finally {
-                clearTimeout(timeout);
+            if (eligibleTargets.length === 0) {
+                return { success: true, skipped: true, reason: 'no selected telegram targets' };
             }
+
+            const results = [];
+            for (const target of eligibleTargets) {
+                const botToken = String(target.botToken).trim();
+                const chatId = String(target.chatId).trim();
+                const telegramUrl = `https://api.telegram.org/bot${botToken}/sendDocument`;
+                const form = new FormData();
+                form.append('chat_id', chatId);
+                form.append('document', blob, safeFilename);
+
+                const controller = new AbortController();
+                const timeout = setTimeout(() => controller.abort(), 15_000);
+                try {
+                    const resp = await fetch(telegramUrl, { method: 'POST', body: form, signal: controller.signal });
+                    const json = await resp.json().catch(() => null);
+                    if (!resp.ok || !json?.ok) {
+                        results.push({
+                            id: target.id || null,
+                            success: false,
+                            error: json?.description || `Telegram HTTP ${resp.status}`,
+                        });
+                    } else {
+                        results.push({
+                            id: target.id || null,
+                            success: true,
+                        });
+                    }
+                } finally {
+                    clearTimeout(timeout);
+                }
+            }
+
+            const successCount = results.filter(item => item.success).length;
+            if (successCount === 0) {
+                return { success: false, error: 'Failed to send to all selected Telegram targets.', results };
+            }
+            return { success: true, results, successCount, total: results.length };
         } catch (error) {
             return { success: false, error: error?.message || String(error) };
         }

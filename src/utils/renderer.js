@@ -754,8 +754,10 @@ async function captureManualScreenshot(imageQuality = null) {
                     console.warn('Failed to save manual screenshot locally:', error);
                 }
 
-                const prefs = await storage.getPreferences();
-                if (prefs.sendScreenshotToTelegram) {
+                const credentials = await storage.getCredentials();
+                const targets = Array.isArray(credentials.telegramTargets) ? credentials.telegramTargets : [];
+                const hasSelectedTarget = targets.some(target => target && target.selected === true && target.enabled !== false);
+                if (hasSelectedTarget) {
                     try {
                         const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
                         const telegramResult = await ipcRenderer.invoke('telegram:send-photo', {
@@ -769,6 +771,7 @@ async function captureManualScreenshot(imageQuality = null) {
                         console.warn('Failed to send screenshot to Telegram:', error?.message || error);
                     }
                 }
+                const prefs = await storage.getPreferences();
                 const outputLanguage = prefs.selectedOutputLanguage || 'en-US';
                 const outputProgrammingLanguage = prefs.selectedOutputProgrammingLanguage || 'python';
                 const programmingLanguageLabel =

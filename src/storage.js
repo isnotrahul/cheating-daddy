@@ -13,8 +13,7 @@ const DEFAULT_CONFIG = {
 
 const DEFAULT_CREDENTIALS = {
     apiKey: '',
-    telegramBotToken: '',
-    telegramChatId: ''
+    telegramTargets: []
 };
 
 const DEFAULT_PREFERENCES = {
@@ -29,8 +28,7 @@ const DEFAULT_PREFERENCES = {
     audioMode: 'speaker_only',
     fontSize: 'medium',
     backgroundTransparency: 0.8,
-    googleSearchEnabled: false,
-    sendScreenshotToTelegram: false
+    googleSearchEnabled: false
 };
 
 const DEFAULT_KEYBINDS = null; // null means use system defaults

@@ -533,6 +533,107 @@ export class CustomizeView extends LitElement {
             color: var(--error-color);
             border-left: 2px solid var(--error-color);
         }
+
+        .telegram-toggle-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            padding: 10px 12px;
+            border: 1px solid var(--border-color);
+            border-radius: 3px;
+            background: var(--bg-secondary);
+        }
+
+        .telegram-toggle-copy {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .telegram-toggle-title {
+            font-size: 12px;
+            font-weight: 500;
+            color: var(--text-color);
+        }
+
+        .telegram-toggle-subtitle {
+            font-size: 11px;
+            color: var(--text-muted);
+            line-height: 1.4;
+        }
+
+        .telegram-save-button {
+            background: var(--btn-primary-bg, #ffffff);
+            color: var(--btn-primary-text, #000000);
+            border: none;
+            padding: 8px 12px;
+            border-radius: 3px;
+            font-size: 11px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.1s ease;
+            align-self: flex-start;
+        }
+
+        .telegram-save-button:hover {
+            background: var(--btn-primary-hover, #f0f0f0);
+        }
+
+        .telegram-save-button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .telegram-target-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-top: 4px;
+        }
+
+        .telegram-target-item {
+            border: 1px solid var(--border-color);
+            border-radius: 3px;
+            background: var(--bg-secondary);
+            padding: 10px 12px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+        }
+
+        .telegram-target-meta {
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
+            min-width: 0;
+        }
+
+        .telegram-target-title {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-color);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .telegram-target-subline {
+            font-size: 11px;
+            color: var(--text-muted);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            font-family: 'SF Mono', Monaco, monospace;
+        }
+
+        .telegram-target-controls {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-shrink: 0;
+        }
     `;
 
     static properties = {
@@ -557,6 +658,12 @@ export class CustomizeView extends LitElement {
         isClearing: { type: Boolean },
         clearStatusMessage: { type: String },
         clearStatusType: { type: String },
+        telegramTargets: { type: Array },
+        newTelegramBotToken: { type: String },
+        newTelegramChatId: { type: String },
+        newTelegramLabel: { type: String },
+        telegramStatusMessage: { type: String },
+        telegramStatusType: { type: String },
     };
 
     constructor() {
@@ -582,6 +689,12 @@ export class CustomizeView extends LitElement {
         this.isClearing = false;
         this.clearStatusMessage = '';
         this.clearStatusType = '';
+        this.telegramTargets = [];
+        this.newTelegramBotToken = '';
+        this.newTelegramChatId = '';
+        this.newTelegramLabel = '';
+        this.telegramStatusMessage = '';
+        this.telegramStatusType = '';
 
         // Background transparency default
         this.backgroundTransparency = 0.8;
@@ -620,6 +733,7 @@ export class CustomizeView extends LitElement {
             { id: 'audio', name: 'Audio', icon: 'mic' },
             { id: 'language', name: 'Language', icon: 'globe' },
             { id: 'capture', name: 'Capture', icon: 'camera' },
+            { id: 'telegram', name: 'Telegram', icon: 'send' },
             { id: 'keyboard', name: 'Keyboard', icon: 'keyboard' },
             { id: 'search', name: 'Search', icon: 'search' },
             { id: 'advanced', name: 'Advanced', icon: 'warning', danger: true },
@@ -667,6 +781,10 @@ export class CustomizeView extends LitElement {
                 <circle cx="11" cy="11" r="8"></circle>
                 <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
             </svg>`,
+            send: html`<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="22" y1="2" x2="11" y2="13"></line>
+                <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+            </svg>`,
             warning: html`<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
                 <line x1="12" y1="9" x2="12" y2="13"></line>
@@ -678,9 +796,10 @@ export class CustomizeView extends LitElement {
 
     async _loadFromStorage() {
         try {
-            const [prefs, keybinds] = await Promise.all([
+            const [prefs, keybinds, credentials] = await Promise.all([
                 cheatingDaddy.storage.getPreferences(),
-                cheatingDaddy.storage.getKeybinds()
+                cheatingDaddy.storage.getKeybinds(),
+                cheatingDaddy.storage.getCredentials(),
             ]);
 
             this.googleSearchEnabled = prefs.googleSearchEnabled ?? true;
@@ -689,6 +808,7 @@ export class CustomizeView extends LitElement {
             this.audioMode = prefs.audioMode ?? 'speaker_only';
             this.customPrompt = prefs.customPrompt ?? '';
             this.theme = prefs.theme ?? 'dark';
+            this.telegramTargets = Array.isArray(credentials.telegramTargets) ? credentials.telegramTargets : [];
 
             if (keybinds) {
                 this.keybinds = { ...this.getDefaultKeybinds(), ...keybinds };
@@ -1080,6 +1200,104 @@ export class CustomizeView extends LitElement {
         this.requestUpdate();
     }
 
+    handleNewTelegramBotTokenInput(e) {
+        this.newTelegramBotToken = e.target.value;
+        this.telegramStatusMessage = '';
+        this.telegramStatusType = '';
+    }
+
+    handleNewTelegramChatIdInput(e) {
+        this.newTelegramChatId = e.target.value;
+        this.telegramStatusMessage = '';
+        this.telegramStatusType = '';
+    }
+
+    handleNewTelegramLabelInput(e) {
+        this.newTelegramLabel = e.target.value;
+        this.telegramStatusMessage = '';
+        this.telegramStatusType = '';
+    }
+
+    async _persistTelegramTargets(nextTargets) {
+        this.telegramTargets = nextTargets;
+        await cheatingDaddy.storage.setCredentials({
+            telegramTargets: nextTargets,
+        });
+    }
+
+    async addTelegramTarget() {
+        const token = (this.newTelegramBotToken || '').trim();
+        const chatId = (this.newTelegramChatId || '').trim();
+        const label = (this.newTelegramLabel || '').trim();
+
+        if (!token || !chatId) {
+            this.telegramStatusMessage = 'Bot Token and Chat ID are required.';
+            this.telegramStatusType = 'error';
+            this.requestUpdate();
+            return;
+        }
+
+        try {
+            const duplicate = this.telegramTargets.some(target => String(target.chatId).trim() === chatId && String(target.botToken).trim() === token);
+            if (duplicate) {
+                this.telegramStatusMessage = 'This bot + chat pair already exists.';
+                this.telegramStatusType = 'error';
+                this.requestUpdate();
+                return;
+            }
+
+            const newTarget = {
+                id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+                label: label || `Target ${this.telegramTargets.length + 1}`,
+                botToken: token,
+                chatId: chatId,
+                selected: true,
+                enabled: true,
+            };
+
+            await this._persistTelegramTargets([...this.telegramTargets, newTarget]);
+            this.newTelegramBotToken = '';
+            this.newTelegramChatId = '';
+            this.newTelegramLabel = '';
+            this.telegramStatusMessage = 'Telegram target added.';
+            this.telegramStatusType = 'success';
+        } catch (error) {
+            console.error('Failed to add Telegram target:', error);
+            this.telegramStatusMessage = `Failed to add target: ${error.message}`;
+            this.telegramStatusType = 'error';
+        }
+
+        this.requestUpdate();
+    }
+
+    async removeTelegramTarget(targetId) {
+        try {
+            const filtered = this.telegramTargets.filter(target => target.id !== targetId);
+            await this._persistTelegramTargets(filtered);
+            this.telegramStatusMessage = 'Telegram target removed.';
+            this.telegramStatusType = 'success';
+        } catch (error) {
+            console.error('Failed to remove Telegram target:', error);
+            this.telegramStatusMessage = `Failed to remove target: ${error.message}`;
+            this.telegramStatusType = 'error';
+        }
+        this.requestUpdate();
+    }
+
+    async toggleTelegramTargetSelected(targetId, selected) {
+        try {
+            const updated = this.telegramTargets.map(target =>
+                target.id === targetId ? { ...target, selected } : target
+            );
+            await this._persistTelegramTargets(updated);
+        } catch (error) {
+            console.error('Failed to update Telegram target selection:', error);
+            this.telegramStatusMessage = `Failed to update target: ${error.message}`;
+            this.telegramStatusType = 'error';
+            this.requestUpdate();
+        }
+    }
+
     async clearLocalData() {
         if (this.isClearing) return;
 
@@ -1463,6 +1681,109 @@ export class CustomizeView extends LitElement {
         `;
     }
 
+    renderTelegramSection() {
+        const selectedCount = this.telegramTargets.filter(target => target.selected).length;
+
+        return html`
+            <div class="content-header">Telegram</div>
+            <div class="form-grid">
+                <div class="telegram-toggle-row">
+                    <label class="telegram-toggle-copy">
+                        <span class="telegram-toggle-title">Selected targets receive screenshots</span>
+                        <span class="telegram-toggle-subtitle">${selectedCount} selected</span>
+                    </label>
+                    <span class="current-selection">${selectedCount} active</span>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Target Label (Optional)</label>
+                    <input
+                        class="form-control"
+                        type="text"
+                        placeholder="e.g. My Personal Chat"
+                        .value=${this.newTelegramLabel}
+                        @input=${this.handleNewTelegramLabelInput}
+                        autocomplete="off"
+                        spellcheck="false"
+                    />
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Bot Token</label>
+                    <input
+                        class="form-control"
+                        type="password"
+                        placeholder="123456789:AA..."
+                        .value=${this.newTelegramBotToken}
+                        @input=${this.handleNewTelegramBotTokenInput}
+                        autocomplete="off"
+                        spellcheck="false"
+                    />
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Chat ID</label>
+                    <input
+                        class="form-control"
+                        type="text"
+                        placeholder="e.g. 6441357451 or -100..."
+                        .value=${this.newTelegramChatId}
+                        @input=${this.handleNewTelegramChatIdInput}
+                        autocomplete="off"
+                        spellcheck="false"
+                    />
+                    <div class="form-description">
+                        Add multiple bot/chat pairs, then use checkboxes below to control who receives screenshots.
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <button class="telegram-save-button" @click=${this.addTelegramTarget}>Add Telegram Target</button>
+                    ${this.telegramStatusMessage ? html`
+                        <div class="status-message ${this.telegramStatusType === 'success' ? 'status-success' : 'status-error'}">
+                            ${this.telegramStatusMessage}
+                        </div>
+                    ` : ''}
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Configured Targets</label>
+                    ${this.telegramTargets.length === 0
+                        ? html`<div class="form-description">No Telegram targets configured yet.</div>`
+                        : html`
+                              <div class="telegram-target-list">
+                                  ${this.telegramTargets.map(
+                                      target => html`
+                                          <div class="telegram-target-item">
+                                              <div class="telegram-target-meta">
+                                                  <div class="telegram-target-title">${target.label || 'Telegram Target'}</div>
+                                                  <div class="telegram-target-subline">chat: ${target.chatId}</div>
+                                                  <div class="telegram-target-subline">token: ${(target.botToken || '').slice(0, 8)}...</div>
+                                              </div>
+                                              <div class="telegram-target-controls">
+                                                  <div class="checkbox-group">
+                                                      <input
+                                                          type="checkbox"
+                                                          class="checkbox-input"
+                                                          .checked=${Boolean(target.selected)}
+                                                          @change=${e => this.toggleTelegramTargetSelected(target.id, e.target.checked)}
+                                                      />
+                                                      <span class="checkbox-label">Send</span>
+                                                  </div>
+                                                  <button class="reset-color-button" @click=${() => this.removeTelegramTarget(target.id)}>
+                                                      Remove
+                                                  </button>
+                                              </div>
+                                          </div>
+                                      `
+                                  )}
+                              </div>
+                          `}
+                </div>
+            </div>
+        `;
+    }
+
     renderAdvancedSection() {
         return html`
             <div class="content-header" style="color: var(--error-color);">Advanced</div>
@@ -1501,6 +1822,8 @@ export class CustomizeView extends LitElement {
                 return this.renderLanguageSection();
             case 'capture':
                 return this.renderCaptureSection();
+            case 'telegram':
+                return this.renderTelegramSection();
             case 'keyboard':
                 return this.renderKeyboardSection();
             case 'search':
