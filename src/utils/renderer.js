@@ -24,6 +24,18 @@ let currentImageQuality = 'medium'; // Store current image quality for manual sc
 const isLinux = process.platform === 'linux';
 const isMacOS = process.platform === 'darwin';
 
+function getDisplayVideoConstraints() {
+    // Prefer current display size/aspect ratio instead of forcing 1920x1080.
+    const screenWidth = Math.max(640, Math.floor(window.screen?.width || 1920));
+    const screenHeight = Math.max(360, Math.floor(window.screen?.height || 1080));
+
+    return {
+        frameRate: 1,
+        width: { ideal: screenWidth },
+        height: { ideal: screenHeight },
+    };
+}
+
 // ============ STORAGE API ============
 // Wrapper for IPC-based storage access
 const storage = {
@@ -190,11 +202,7 @@ async function startCapture(screenshotIntervalSeconds = 5, imageQuality = 'mediu
 
             // Get screen capture for screenshots
             mediaStream = await navigator.mediaDevices.getDisplayMedia({
-                video: {
-                    frameRate: 1,
-                    width: { ideal: 1920 },
-                    height: { ideal: 1080 },
-                },
+                video: getDisplayVideoConstraints(),
                 audio: false, // Don't use browser audio on macOS
             });
 
@@ -224,11 +232,7 @@ async function startCapture(screenshotIntervalSeconds = 5, imageQuality = 'mediu
             try {
                 // First try to get system audio via getDisplayMedia (works on newer browsers)
                 mediaStream = await navigator.mediaDevices.getDisplayMedia({
-                    video: {
-                        frameRate: 1,
-                        width: { ideal: 1920 },
-                        height: { ideal: 1080 },
-                    },
+                    video: getDisplayVideoConstraints(),
                     audio: {
                         sampleRate: SAMPLE_RATE,
                         channelCount: 1,
@@ -247,11 +251,7 @@ async function startCapture(screenshotIntervalSeconds = 5, imageQuality = 'mediu
 
                 // Fallback to screen-only capture
                 mediaStream = await navigator.mediaDevices.getDisplayMedia({
-                    video: {
-                        frameRate: 1,
-                        width: { ideal: 1920 },
-                        height: { ideal: 1080 },
-                    },
+                    video: getDisplayVideoConstraints(),
                     audio: false,
                 });
             }
@@ -285,11 +285,7 @@ async function startCapture(screenshotIntervalSeconds = 5, imageQuality = 'mediu
         } else {
             // Windows - use display media with loopback for system audio
             mediaStream = await navigator.mediaDevices.getDisplayMedia({
-                video: {
-                    frameRate: 1,
-                    width: { ideal: 1920 },
-                    height: { ideal: 1080 },
-                },
+                video: getDisplayVideoConstraints(),
                 audio: {
                     sampleRate: SAMPLE_RATE,
                     channelCount: 1,
