@@ -5,282 +5,302 @@ export class AssistantView extends LitElement {
     static styles = [
         codeHighlightStyles,
         css`
-        :host {
-            height: 100%;
-            display: flex;
-            flex-direction: column;
-        }
+            :host {
+                height: 100%;
+                display: flex;
+                flex-direction: column;
+            }
 
-        * {
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-            cursor: default;
-        }
+            * {
+                font-family:
+                    'Inter',
+                    -apple-system,
+                    BlinkMacSystemFont,
+                    sans-serif;
+                cursor: default;
+            }
 
-        .response-container {
-            height: calc(100% - 50px);
-            overflow-y: auto;
-            font-size: var(--response-font-size, 16px);
-            line-height: 1.6;
-            background: var(--bg-primary);
-            padding: 12px;
-            scroll-behavior: smooth;
-            user-select: text;
-            cursor: text;
-        }
+            .response-container {
+                height: calc(100% - 50px);
+                overflow-y: auto;
+                font-size: var(--response-font-size, 16px);
+                line-height: 1.6;
+                background: var(--bg-primary);
+                padding: 12px;
+                scroll-behavior: smooth;
+                user-select: text;
+                cursor: text;
+            }
 
-        .response-container * {
-            user-select: text;
-            cursor: text;
-        }
+            .response-container * {
+                user-select: text;
+                cursor: text;
+            }
 
-        .response-container a {
-            cursor: pointer;
-        }
+            .response-container a {
+                cursor: pointer;
+            }
 
-        /* Word display (no animation) */
-        .response-container [data-word] {
-            display: inline-block;
-        }
+            /* Word display (no animation) */
+            .response-container [data-word] {
+                display: inline-block;
+            }
 
-        /* Markdown styling */
-        .response-container h1,
-        .response-container h2,
-        .response-container h3,
-        .response-container h4,
-        .response-container h5,
-        .response-container h6 {
-            margin: 1em 0 0.5em 0;
-            color: var(--text-color);
-            font-weight: 600;
-        }
+            /* Markdown styling */
+            .response-container h1,
+            .response-container h2,
+            .response-container h3,
+            .response-container h4,
+            .response-container h5,
+            .response-container h6 {
+                margin: 1em 0 0.5em 0;
+                color: var(--text-color);
+                font-weight: 600;
+            }
 
-        .response-container h1 { font-size: 1.6em; }
-        .response-container h2 { font-size: 1.4em; }
-        .response-container h3 { font-size: 1.2em; }
-        .response-container h4 { font-size: 1.1em; }
-        .response-container h5 { font-size: 1em; }
-        .response-container h6 { font-size: 0.9em; }
+            .response-container h1 {
+                font-size: 1.6em;
+            }
+            .response-container h2 {
+                font-size: 1.4em;
+            }
+            .response-container h3 {
+                font-size: 1.2em;
+            }
+            .response-container h4 {
+                font-size: 1.1em;
+            }
+            .response-container h5 {
+                font-size: 1em;
+            }
+            .response-container h6 {
+                font-size: 0.9em;
+            }
 
-        .response-container p {
-            margin: 0.6em 0;
-            color: var(--text-color);
-        }
+            .response-container p {
+                margin: 0.6em 0;
+                color: var(--text-color);
+            }
 
-        .response-container ul,
-        .response-container ol {
-            margin: 0.6em 0;
-            padding-left: 1.5em;
-            color: var(--text-color);
-        }
+            .response-container ul,
+            .response-container ol {
+                margin: 0.6em 0;
+                padding-left: 1.5em;
+                color: var(--text-color);
+            }
 
-        .response-container li {
-            margin: 0.3em 0;
-        }
+            .response-container li {
+                margin: 0.3em 0;
+            }
 
-        .response-container blockquote {
-            margin: 0.8em 0;
-            padding: 0.5em 1em;
-            border-left: 2px solid var(--border-default);
-            background: var(--bg-secondary);
-        }
+            .response-container blockquote {
+                margin: 0.8em 0;
+                padding: 0.5em 1em;
+                border-left: 2px solid var(--border-default);
+                background: var(--bg-secondary);
+            }
 
-        .response-container code {
-            background: var(--bg-tertiary);
-            padding: 0.15em 0.4em;
-            border-radius: 3px;
-            font-family: 'SF Mono', Monaco, monospace;
-            font-size: 0.85em;
-        }
+            .response-container code {
+                background: var(--bg-tertiary);
+                padding: 0.15em 0.4em;
+                border-radius: 3px;
+                font-family: 'SF Mono', Monaco, monospace;
+                font-size: 0.85em;
+            }
 
-        .response-container pre {
-            background: var(--bg-secondary);
-            border: 1px solid var(--border-color);
-            border-radius: 3px;
-            padding: 12px;
-            overflow-x: auto;
-            scroll-behavior: smooth;
-            margin: 0.8em 0;
-        }
+            .response-container pre {
+                background: var(--bg-secondary);
+                border: 1px solid var(--border-color);
+                border-radius: 3px;
+                padding: 12px;
+                overflow-x: auto;
+                scroll-behavior: smooth;
+                margin: 0.8em 0;
+            }
 
-        .response-container pre code {
-            background: none;
-            padding: 0;
-        }
+            .response-container pre code {
+                background: none;
+                padding: 0;
+            }
 
-        .response-container a {
-            color: var(--text-color);
-            text-decoration: underline;
-            text-underline-offset: 2px;
-        }
+            .response-container a {
+                color: var(--text-color);
+                text-decoration: underline;
+                text-underline-offset: 2px;
+            }
 
-        .response-container strong,
-        .response-container b {
-            font-weight: 600;
-        }
+            .response-container strong,
+            .response-container b {
+                font-weight: 600;
+            }
 
-        .response-container hr {
-            border: none;
-            border-top: 1px solid var(--border-color);
-            margin: 1.5em 0;
-        }
+            .response-container hr {
+                border: none;
+                border-top: 1px solid var(--border-color);
+                margin: 1.5em 0;
+            }
 
-        .response-container table {
-            border-collapse: collapse;
-            width: 100%;
-            margin: 0.8em 0;
-        }
+            .response-container table {
+                border-collapse: collapse;
+                width: 100%;
+                margin: 0.8em 0;
+            }
 
-        .response-container th,
-        .response-container td {
-            border: 1px solid var(--border-color);
-            padding: 8px;
-            text-align: left;
-        }
+            .response-container th,
+            .response-container td {
+                border: 1px solid var(--border-color);
+                padding: 8px;
+                text-align: left;
+            }
 
-        .response-container th {
-            background: var(--bg-secondary);
-            font-weight: 600;
-        }
+            .response-container th {
+                background: var(--bg-secondary);
+                font-weight: 600;
+            }
 
-        .response-container::-webkit-scrollbar {
-            width: 8px;
-        }
+            .response-container::-webkit-scrollbar {
+                width: 8px;
+            }
 
-        .response-container::-webkit-scrollbar-track {
-            background: transparent;
-        }
+            .response-container::-webkit-scrollbar-track {
+                background: transparent;
+            }
 
-        .response-container::-webkit-scrollbar-thumb {
-            background: var(--scrollbar-thumb);
-            border-radius: 4px;
-        }
+            .response-container::-webkit-scrollbar-thumb {
+                background: var(--scrollbar-thumb);
+                border-radius: 4px;
+            }
 
-        .response-container::-webkit-scrollbar-thumb:hover {
-            background: var(--scrollbar-thumb-hover);
-        }
+            .response-container::-webkit-scrollbar-thumb:hover {
+                background: var(--scrollbar-thumb-hover);
+            }
 
-        .text-input-container {
-            display: flex;
-            gap: 8px;
-            margin-top: 8px;
-            align-items: center;
-        }
+            .text-input-container {
+                display: flex;
+                gap: 8px;
+                margin-top: 8px;
+                align-items: center;
+            }
 
-        .text-input-container input {
-            flex: 1;
-            background: transparent;
-            color: var(--text-color);
-            border: none;
-            border-bottom: 1px solid var(--border-color);
-            padding: 8px 4px;
-            border-radius: 0;
-            font-size: 13px;
-        }
+            .text-input-container input {
+                flex: 1;
+                background: transparent;
+                color: var(--text-color);
+                border: none;
+                border-bottom: 1px solid var(--border-color);
+                padding: 8px 4px;
+                border-radius: 0;
+                font-size: 13px;
+            }
 
-        .text-input-container input:focus {
-            outline: none;
-            border-bottom-color: var(--text-color);
-        }
+            .text-input-container input:focus {
+                outline: none;
+                border-bottom-color: var(--text-color);
+            }
 
-        .text-input-container input::placeholder {
-            color: var(--placeholder-color);
-        }
+            .text-input-container input::placeholder {
+                color: var(--placeholder-color);
+            }
 
-        .mode-toggle {
-            display: flex;
-            gap: 6px;
-            align-items: center;
-        }
+            .mode-toggle {
+                display: flex;
+                gap: 6px;
+                align-items: center;
+            }
 
-        .mode-button {
-            background: transparent;
-            color: var(--text-secondary);
-            border: 1px solid var(--border-color);
-            padding: 4px 8px;
-            border-radius: 14px;
-            font-size: 11px;
-            font-weight: 500;
-            transition: all 0.1s ease;
-        }
+            .mode-button {
+                background: transparent;
+                color: var(--text-secondary);
+                border: 1px solid var(--border-color);
+                padding: 4px 8px;
+                border-radius: 14px;
+                font-size: 11px;
+                font-weight: 500;
+                transition: all 0.1s ease;
+            }
 
-        .mode-button:hover {
-            background: var(--hover-background);
-            color: var(--text-color);
-        }
+            .mode-button:hover {
+                background: var(--hover-background);
+                color: var(--text-color);
+            }
 
-        .mode-button.is-active {
-            background: var(--btn-primary-bg, #ffffff);
-            color: var(--btn-primary-text, #000000);
-            border-color: transparent;
-        }
+            .mode-button:disabled {
+                opacity: 0.5;
+                cursor: not-allowed;
+            }
 
-        .nav-button {
-            background: transparent;
-            color: var(--text-secondary);
-            border: none;
-            padding: 6px;
-            border-radius: 3px;
-            font-size: 12px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: all 0.1s ease;
-        }
+            .mode-button.is-active {
+                background: var(--btn-primary-bg, #ffffff);
+                color: var(--btn-primary-text, #000000);
+                border-color: transparent;
+            }
 
-        .nav-button:hover {
-            background: var(--hover-background);
-            color: var(--text-color);
-        }
+            .nav-button {
+                background: transparent;
+                color: var(--text-secondary);
+                border: none;
+                padding: 6px;
+                border-radius: 3px;
+                font-size: 12px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                transition: all 0.1s ease;
+            }
 
-        .nav-button:disabled {
-            opacity: 0.3;
-        }
+            .nav-button:hover {
+                background: var(--hover-background);
+                color: var(--text-color);
+            }
 
-        .nav-button svg {
-            width: 18px;
-            height: 18px;
-            stroke: currentColor;
-        }
+            .nav-button:disabled {
+                opacity: 0.3;
+            }
 
-        .nav-button.muted {
-            color: var(--error-color);
-        }
+            .nav-button svg {
+                width: 18px;
+                height: 18px;
+                stroke: currentColor;
+            }
 
-        .response-counter {
-            font-size: 11px;
-            color: var(--text-muted);
-            white-space: nowrap;
-            min-width: 50px;
-            text-align: center;
-            font-family: 'SF Mono', Monaco, monospace;
-        }
+            .nav-button.muted {
+                color: var(--error-color);
+            }
 
-        .screen-answer-btn {
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            background: var(--btn-primary-bg, #ffffff);
-            color: var(--btn-primary-text, #000000);
-            border: none;
-            padding: 6px 12px;
-            border-radius: 20px;
-            font-size: 12px;
-            font-weight: 500;
-            cursor: pointer;
-            transition: all 0.15s ease;
-            white-space: nowrap;
-        }
+            .response-counter {
+                font-size: 11px;
+                color: var(--text-muted);
+                white-space: nowrap;
+                min-width: 50px;
+                text-align: center;
+                font-family: 'SF Mono', Monaco, monospace;
+            }
 
-        .screen-answer-btn:hover {
-            background: var(--btn-primary-hover, #f0f0f0);
-        }
+            .screen-answer-btn {
+                display: flex;
+                align-items: center;
+                gap: 6px;
+                background: var(--btn-primary-bg, #ffffff);
+                color: var(--btn-primary-text, #000000);
+                border: none;
+                padding: 6px 12px;
+                border-radius: 20px;
+                font-size: 12px;
+                font-weight: 500;
+                cursor: pointer;
+                transition: all 0.15s ease;
+                white-space: nowrap;
+            }
 
-        .screen-answer-btn svg {
-            width: 16px;
-            height: 16px;
-            flex-shrink: 0;
-        }
+            .screen-answer-btn:hover {
+                background: var(--btn-primary-hover, #f0f0f0);
+            }
 
+            .screen-answer-btn svg {
+                width: 16px;
+                height: 16px;
+                flex-shrink: 0;
+            }
         `,
     ];
 
@@ -292,6 +312,8 @@ export class AssistantView extends LitElement {
         shouldAnimateResponse: { type: Boolean },
         audioMuted: { type: Boolean },
         manualScreenshotMode: { type: String },
+        systemAudioInterrupted: { type: Boolean },
+        isReconnectingSystemAudio: { type: Boolean },
     };
 
     constructor() {
@@ -302,6 +324,8 @@ export class AssistantView extends LitElement {
         this.onSendText = () => {};
         this.audioMuted = false;
         this.manualScreenshotMode = '';
+        this.systemAudioInterrupted = false;
+        this.isReconnectingSystemAudio = false;
         this.activeHorizontalScrollTarget = null;
     }
 
@@ -490,11 +514,21 @@ export class AssistantView extends LitElement {
             this.manualScreenshotMode = window.cheatingDaddy.getManualScreenshotMode() || '';
         }
 
+        if (window.cheatingDaddy && typeof window.cheatingDaddy.getSystemAudioInterrupted === 'function') {
+            this.systemAudioInterrupted = !!window.cheatingDaddy.getSystemAudioInterrupted();
+        }
+
         this.handleManualScreenshotModeChanged = event => {
             this.manualScreenshotMode = event?.detail?.mode || '';
             this.requestUpdate();
         };
         window.addEventListener('manual-screenshot-mode-changed', this.handleManualScreenshotModeChanged);
+
+        this.handleSystemAudioInterruptedChanged = event => {
+            this.systemAudioInterrupted = !!event?.detail?.interrupted;
+            this.requestUpdate();
+        };
+        window.addEventListener('system-audio-interrupted-changed', this.handleSystemAudioInterruptedChanged);
 
         // Set up IPC listeners for keyboard shortcuts
         if (window.require) {
@@ -586,6 +620,29 @@ export class AssistantView extends LitElement {
         }
     }
 
+    async handleReconnectSystemAudio() {
+        if (this.isReconnectingSystemAudio) {
+            return;
+        }
+        if (!window.cheatingDaddy || typeof window.cheatingDaddy.reconnectSystemAudio !== 'function') {
+            return;
+        }
+
+        this.isReconnectingSystemAudio = true;
+        try {
+            const result = await window.cheatingDaddy.reconnectSystemAudio();
+            if (!result?.success && typeof window.cheatingDaddy.setStatus === 'function') {
+                window.cheatingDaddy.setStatus(result?.error || 'Failed to reconnect system audio');
+            }
+        } catch (error) {
+            if (typeof window.cheatingDaddy.setStatus === 'function') {
+                window.cheatingDaddy.setStatus(error?.message || String(error));
+            }
+        } finally {
+            this.isReconnectingSystemAudio = false;
+        }
+    }
+
     scrollToBottom() {
         setTimeout(() => {
             const container = this.shadowRoot.querySelector('.response-container');
@@ -614,6 +671,9 @@ export class AssistantView extends LitElement {
 
         if (this.handleManualScreenshotModeChanged) {
             window.removeEventListener('manual-screenshot-mode-changed', this.handleManualScreenshotModeChanged);
+        }
+        if (this.handleSystemAudioInterruptedChanged) {
+            window.removeEventListener('system-audio-interrupted-changed', this.handleSystemAudioInterruptedChanged);
         }
 
         const container = this.shadowRoot?.querySelector('.response-container');
@@ -727,14 +787,28 @@ export class AssistantView extends LitElement {
                     @click=${this.handleToggleAudioMuted}
                 >
                     ${this.audioMuted
-                        ? html`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+                        ? html`<svg
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              stroke-width="1.7"
+                              stroke-linecap="round"
+                              stroke-linejoin="round"
+                          >
                               <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path>
                               <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
                               <line x1="12" y1="19" x2="12" y2="23"></line>
                               <line x1="8" y1="23" x2="16" y2="23"></line>
                               <line x1="4" y1="4" x2="20" y2="20"></line>
                           </svg>`
-                        : html`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+                        : html`<svg
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              stroke-width="1.7"
+                              stroke-linecap="round"
+                              stroke-linejoin="round"
+                          >
                               <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path>
                               <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
                               <line x1="12" y1="19" x2="12" y2="23"></line>
@@ -742,9 +816,23 @@ export class AssistantView extends LitElement {
                           </svg>`}
                 </button>
 
+                ${window.cheatingDaddy?.isMacOS
+                    ? html`
+                          <button
+                              class="mode-button"
+                              ?disabled=${this.isReconnectingSystemAudio}
+                              @click=${this.handleReconnectSystemAudio}
+                          >
+                              ${this.isReconnectingSystemAudio ? 'Reconnecting...' : 'Reconnect System Audio'}
+                          </button>
+                      `
+                    : ''}
+
                 <button class="screen-answer-btn" @click=${this.handleScreenAnswer}>
                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                        <path d="M15.98 1.804a1 1 0 0 0-1.96 0l-.24 1.192a1 1 0 0 1-.784.785l-1.192.238a1 1 0 0 0 0 1.962l1.192.238a1 1 0 0 1 .785.785l.238 1.192a1 1 0 0 0 1.962 0l.238-1.192a1 1 0 0 1 .785-.785l1.192-.238a1 1 0 0 0 0-1.962l-1.192-.238a1 1 0 0 1-.785-.785l-.238-1.192ZM6.949 5.684a1 1 0 0 0-1.898 0l-.683 2.051a1 1 0 0 1-.633.633l-2.051.683a1 1 0 0 0 0 1.898l2.051.684a1 1 0 0 1 .633.632l.683 2.051a1 1 0 0 0 1.898 0l.683-2.051a1 1 0 0 1 .633-.633l2.051-.683a1 1 0 0 0 0-1.898l-2.051-.683a1 1 0 0 1-.633-.633L6.95 5.684ZM13.949 13.684a1 1 0 0 0-1.898 0l-.184.551a1 1 0 0 1-.632.633l-.551.183a1 1 0 0 0 0 1.898l.551.183a1 1 0 0 1 .633.633l.183.551a1 1 0 0 0 1.898 0l.184-.551a1 1 0 0 1 .632-.633l.551-.183a1 1 0 0 0 0-1.898l-.551-.184a1 1 0 0 1-.633-.632l-.183-.551Z" />
+                        <path
+                            d="M15.98 1.804a1 1 0 0 0-1.96 0l-.24 1.192a1 1 0 0 1-.784.785l-1.192.238a1 1 0 0 0 0 1.962l1.192.238a1 1 0 0 1 .785.785l.238 1.192a1 1 0 0 0 1.962 0l.238-1.192a1 1 0 0 1 .785-.785l1.192-.238a1 1 0 0 0 0-1.962l-1.192-.238a1 1 0 0 1-.785-.785l-.238-1.192ZM6.949 5.684a1 1 0 0 0-1.898 0l-.683 2.051a1 1 0 0 1-.633.633l-2.051.683a1 1 0 0 0 0 1.898l2.051.684a1 1 0 0 1 .633.632l.683 2.051a1 1 0 0 0 1.898 0l.683-2.051a1 1 0 0 1 .633-.633l2.051-.683a1 1 0 0 0 0-1.898l-2.051-.683a1 1 0 0 1-.633-.633L6.95 5.684ZM13.949 13.684a1 1 0 0 0-1.898 0l-.184.551a1 1 0 0 1-.632.633l-.551.183a1 1 0 0 0 0 1.898l.551.183a1 1 0 0 1 .633.633l.183.551a1 1 0 0 0 1.898 0l.184-.551a1 1 0 0 1 .632-.633l.551-.183a1 1 0 0 0 0-1.898l-.551-.184a1 1 0 0 1-.633-.632l-.183-.551Z"
+                        />
                     </svg>
                     <span>Analyze screen</span>
                 </button>

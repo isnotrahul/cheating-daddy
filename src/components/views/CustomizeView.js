@@ -992,6 +992,7 @@ export class CustomizeView extends LitElement {
             scrollDown: isMac ? 'Cmd+Shift+Down' : 'Ctrl+Shift+Down',
             scrollLeft: isMac ? 'Cmd+Shift+Left' : 'Ctrl+Shift+Left',
             scrollRight: isMac ? 'Cmd+Shift+Right' : 'Ctrl+Shift+Right',
+            reconnectSystemAudio: isMac ? 'Cmd+Shift+A' : 'Ctrl+Shift+A',
             designMode: isMac ? 'Cmd+D' : 'Ctrl+D',
             optimizeMode: isMac ? 'Cmd+O' : 'Ctrl+O',
             reviewMode: isMac ? 'Cmd+R' : 'Ctrl+R',
@@ -1089,6 +1090,11 @@ export class CustomizeView extends LitElement {
                 key: 'scrollRight',
                 name: 'Scroll Code Right',
                 description: 'Scroll horizontally inside long code blocks to the right',
+            },
+            {
+                key: 'reconnectSystemAudio',
+                name: 'Reconnect System Audio',
+                description: 'Manually restart macOS system audio capture (-3821 recovery)',
             },
             {
                 key: 'designMode',

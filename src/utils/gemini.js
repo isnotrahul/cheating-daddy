@@ -53,9 +53,7 @@ function buildContextMessage() {
 
     if (validTurns.length === 0) return null;
 
-    const contextLines = validTurns.map(turn =>
-        `[Interviewer]: ${turn.transcription.trim()}\n[Your answer]: ${turn.ai_response.trim()}`
-    );
+    const contextLines = validTurns.map(turn => `[Interviewer]: ${turn.transcription.trim()}\n[Your answer]: ${turn.ai_response.trim()}`);
 
     return `Session reconnected. Here's the conversation so far:\n\n${contextLines.join('\n\n')}\n\nContinue from here.`;
 }
@@ -75,7 +73,7 @@ function initializeNewSession(profile = null, customPrompt = null) {
         sendToRenderer('save-session-context', {
             sessionId: currentSessionId,
             profile: profile,
-            customPrompt: customPrompt || ''
+            customPrompt: customPrompt || '',
         });
     }
 }
@@ -111,7 +109,7 @@ function saveScreenAnalysis(prompt, response, model) {
         timestamp: Date.now(),
         prompt: prompt,
         response: response.trim(),
-        model: model
+        model: model,
     };
 
     screenAnalysisHistory.push(analysisEntry);
@@ -123,7 +121,7 @@ function saveScreenAnalysis(prompt, response, model) {
         analysis: analysisEntry,
         fullHistory: screenAnalysisHistory,
         profile: currentProfile,
-        customPrompt: currentCustomPrompt
+        customPrompt: currentCustomPrompt,
     });
 }
 
@@ -184,7 +182,14 @@ async function getStoredSetting(key, defaultValue) {
     return defaultValue;
 }
 
-async function initializeGeminiSession(apiKey, customPrompt = '', profile = 'interview', language = 'en-US', outputLanguage = 'en-US', isReconnect = false) {
+async function initializeGeminiSession(
+    apiKey,
+    customPrompt = '',
+    profile = 'interview',
+    language = 'en-US',
+    outputLanguage = 'en-US',
+    isReconnect = false
+) {
     if (isInitializingSession) {
         console.log('Session initialization already in progress');
         return false;
@@ -481,7 +486,16 @@ async function startMacOSAudioCapture(geminiSessionRef) {
     });
 
     systemAudioProc.stderr.on('data', data => {
-        console.error('SystemAudioDump stderr:', data.toString());
+        const errorText = data.toString();
+        console.error('SystemAudioDump stderr:', errorText);
+
+        if (errorText.includes('SCStreamErrorDomain') && errorText.includes('Code=-3821')) {
+            sendToRenderer('system-audio-interrupted', {
+                code: -3821,
+                message: errorText.trim(),
+            });
+            sendToRenderer('update-status', 'Audio Error');
+        }
     });
 
     systemAudioProc.on('close', code => {

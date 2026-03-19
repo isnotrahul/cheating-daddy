@@ -13,6 +13,7 @@ const SAMPLE_RATE = 24000;
 const AUDIO_CHUNK_DURATION = 0.1; // seconds
 const BUFFER_SIZE = 4096; // Increased buffer size for smoother audio
 let audioMuted = false;
+let systemAudioInterrupted = false;
 let manualScreenshotStatusBackup = null;
 let manualScreenshotMode = null;
 
@@ -116,7 +117,7 @@ const storage = {
     async getTodayLimits() {
         const result = await ipcRenderer.invoke('storage:get-today-limits');
         return result.success ? result.data : { flash: { count: 0 }, flashLite: { count: 0 } };
-    }
+    },
 };
 
 // Cache for preferences to avoid async calls in hot paths
@@ -162,6 +163,40 @@ function getAudioMuted() {
     return audioMuted;
 }
 
+function setSystemAudioInterrupted(interrupted, detail = null) {
+    systemAudioInterrupted = Boolean(interrupted);
+    window.dispatchEvent(
+        new CustomEvent('system-audio-interrupted-changed', {
+            detail: {
+                interrupted: systemAudioInterrupted,
+                reason: detail?.message || '',
+            },
+        })
+    );
+}
+
+function getSystemAudioInterrupted() {
+    return systemAudioInterrupted;
+}
+
+async function reconnectSystemAudio() {
+    if (!isMacOS) {
+        return { success: false, error: 'System audio reconnect is only available on macOS.' };
+    }
+
+    try {
+        const result = await ipcRenderer.invoke('start-macos-audio');
+        if (result?.success) {
+            setSystemAudioInterrupted(false);
+            cheatingDaddy.setStatus('System audio reconnected');
+            return { success: true };
+        }
+        return { success: false, error: result?.error || 'Failed to reconnect system audio.' };
+    } catch (error) {
+        return { success: false, error: error?.message || String(error) };
+    }
+}
+
 async function initializeGemini(profile = 'interview', language = 'en-US', outputLanguage = 'en-US') {
     const apiKey = await storage.getApiKey();
     if (apiKey) {
@@ -179,6 +214,12 @@ async function initializeGemini(profile = 'interview', language = 'en-US', outpu
 ipcRenderer.on('update-status', (event, status) => {
     console.log('Status update:', status);
     cheatingDaddy.setStatus(status);
+});
+
+ipcRenderer.on('system-audio-interrupted', (event, data) => {
+    console.warn('System audio interrupted:', data);
+    setSystemAudioInterrupted(true, data);
+    cheatingDaddy.setStatus('Audio Error');
 });
 
 async function startCapture(screenshotIntervalSeconds = 5, imageQuality = 'medium') {
@@ -199,6 +240,7 @@ async function startCapture(screenshotIntervalSeconds = 5, imageQuality = 'mediu
             if (!audioResult.success) {
                 throw new Error('Failed to start macOS audio capture: ' + audioResult.error);
             }
+            setSystemAudioInterrupted(false);
 
             // Get screen capture for screenshots
             mediaStream = await navigator.mediaDevices.getDisplayMedia({
@@ -542,7 +584,8 @@ const OUTPUT_PROGRAMMING_LANGUAGE_LABELS = {
     csharp: 'C#',
 };
 
-const MANUAL_SCREENSHOT_PROMPT_EN = programmingLanguage => `This is a coding/Low-Level Design problem. Please answer in English with the following structure:
+const MANUAL_SCREENSHOT_PROMPT_EN =
+    programmingLanguage => `This is a coding/Low-Level Design problem. Please answer in English with the following structure:
 1. Translation: Complete translation of the problem
 2. Approach: What algorithm you use and your core thinking
 3. Code: ${programmingLanguage} implementation, readable and optimal. Don't use generator expression.
@@ -616,7 +659,7 @@ function normalizeManualScreenshotMode(mode) {
 function notifyManualScreenshotModeChanged() {
     window.dispatchEvent(
         new CustomEvent('manual-screenshot-mode-changed', {
-            detail: { mode: manualScreenshotMode }
+            detail: { mode: manualScreenshotMode },
         })
     );
 }
@@ -777,15 +820,14 @@ async function captureManualScreenshot(imageQuality = null) {
                 const programmingLanguageLabel =
                     OUTPUT_PROGRAMMING_LANGUAGE_LABELS[outputProgrammingLanguage] || OUTPUT_PROGRAMMING_LANGUAGE_LABELS.python;
                 const isEnglish = outputLanguage.toLowerCase().startsWith('en');
-                const modePromptEntry = manualScreenshotMode
-                    ? MANUAL_SCREENSHOT_MODE_PROMPTS[manualScreenshotMode]?.[isEnglish ? 'en' : 'zh']
-                    : '';
+                const modePromptEntry = manualScreenshotMode ? MANUAL_SCREENSHOT_MODE_PROMPTS[manualScreenshotMode]?.[isEnglish ? 'en' : 'zh'] : '';
                 const modePrompt = typeof modePromptEntry === 'function' ? modePromptEntry(programmingLanguageLabel) : modePromptEntry;
-                const prompt = modePrompt && modePrompt.trim()
-                    ? modePrompt
-                    : isEnglish
-                        ? MANUAL_SCREENSHOT_PROMPT_EN(programmingLanguageLabel)
-                        : MANUAL_SCREENSHOT_PROMPT_ZH(programmingLanguageLabel);
+                const prompt =
+                    modePrompt && modePrompt.trim()
+                        ? modePrompt
+                        : isEnglish
+                          ? MANUAL_SCREENSHOT_PROMPT_EN(programmingLanguageLabel)
+                          : MANUAL_SCREENSHOT_PROMPT_ZH(programmingLanguageLabel);
 
                 // Send image with prompt to HTTP API (response streams via IPC events)
                 const result = await ipcRenderer.invoke('send-image-content', {
@@ -845,6 +887,7 @@ function stopCapture() {
         ipcRenderer.invoke('stop-macos-audio').catch(err => {
             console.error('Error stopping macOS audio:', err);
         });
+        setSystemAudioInterrupted(false);
     }
 
     // Clean up hidden elements
@@ -893,7 +936,7 @@ ipcRenderer.on('save-session-context', async (event, data) => {
     try {
         await storage.saveSession(data.sessionId, {
             profile: data.profile,
-            customPrompt: data.customPrompt
+            customPrompt: data.customPrompt,
         });
         console.log('Session context saved:', data.sessionId, 'profile:', data.profile);
     } catch (error) {
@@ -907,7 +950,7 @@ ipcRenderer.on('save-screen-analysis', async (event, data) => {
         await storage.saveSession(data.sessionId, {
             screenAnalysisHistory: data.fullHistory,
             profile: data.profile,
-            customPrompt: data.customPrompt
+            customPrompt: data.customPrompt,
         });
         console.log('Screen analysis saved:', data.sessionId);
     } catch (error) {
@@ -933,6 +976,15 @@ function handleShortcut(shortcutKey) {
         return;
     }
 
+    if (shortcutKey === 'reconnect-system-audio') {
+        reconnectSystemAudio().then(result => {
+            if (!result?.success && result?.error) {
+                cheatingDaddy.setStatus(result.error);
+            }
+        });
+        return;
+    }
+
     if (shortcutKey === 'ctrl+enter' || shortcutKey === 'cmd+enter') {
         if (currentView === 'main') {
             cheatingDaddy.element().handleStart();
@@ -950,60 +1002,102 @@ const theme = {
     themes: {
         dark: {
             background: '#1e1e1e',
-            text: '#e0e0e0', textSecondary: '#a0a0a0', textMuted: '#6b6b6b',
-            border: '#333333', accent: '#ffffff',
-            btnPrimaryBg: '#ffffff', btnPrimaryText: '#000000', btnPrimaryHover: '#e0e0e0',
-            tooltipBg: '#1a1a1a', tooltipText: '#ffffff',
-            keyBg: 'rgba(255,255,255,0.1)'
+            text: '#e0e0e0',
+            textSecondary: '#a0a0a0',
+            textMuted: '#6b6b6b',
+            border: '#333333',
+            accent: '#ffffff',
+            btnPrimaryBg: '#ffffff',
+            btnPrimaryText: '#000000',
+            btnPrimaryHover: '#e0e0e0',
+            tooltipBg: '#1a1a1a',
+            tooltipText: '#ffffff',
+            keyBg: 'rgba(255,255,255,0.1)',
         },
         light: {
             background: '#ffffff',
-            text: '#1a1a1a', textSecondary: '#555555', textMuted: '#888888',
-            border: '#e0e0e0', accent: '#000000',
-            btnPrimaryBg: '#1a1a1a', btnPrimaryText: '#ffffff', btnPrimaryHover: '#333333',
-            tooltipBg: '#1a1a1a', tooltipText: '#ffffff',
-            keyBg: 'rgba(0,0,0,0.1)'
+            text: '#1a1a1a',
+            textSecondary: '#555555',
+            textMuted: '#888888',
+            border: '#e0e0e0',
+            accent: '#000000',
+            btnPrimaryBg: '#1a1a1a',
+            btnPrimaryText: '#ffffff',
+            btnPrimaryHover: '#333333',
+            tooltipBg: '#1a1a1a',
+            tooltipText: '#ffffff',
+            keyBg: 'rgba(0,0,0,0.1)',
         },
         midnight: {
             background: '#0d1117',
-            text: '#c9d1d9', textSecondary: '#8b949e', textMuted: '#6e7681',
-            border: '#30363d', accent: '#58a6ff',
-            btnPrimaryBg: '#58a6ff', btnPrimaryText: '#0d1117', btnPrimaryHover: '#79b8ff',
-            tooltipBg: '#161b22', tooltipText: '#c9d1d9',
-            keyBg: 'rgba(88,166,255,0.15)'
+            text: '#c9d1d9',
+            textSecondary: '#8b949e',
+            textMuted: '#6e7681',
+            border: '#30363d',
+            accent: '#58a6ff',
+            btnPrimaryBg: '#58a6ff',
+            btnPrimaryText: '#0d1117',
+            btnPrimaryHover: '#79b8ff',
+            tooltipBg: '#161b22',
+            tooltipText: '#c9d1d9',
+            keyBg: 'rgba(88,166,255,0.15)',
         },
         sepia: {
             background: '#f4ecd8',
-            text: '#5c4b37', textSecondary: '#7a6a56', textMuted: '#998875',
-            border: '#d4c8b0', accent: '#8b4513',
-            btnPrimaryBg: '#5c4b37', btnPrimaryText: '#f4ecd8', btnPrimaryHover: '#7a6a56',
-            tooltipBg: '#5c4b37', tooltipText: '#f4ecd8',
-            keyBg: 'rgba(92,75,55,0.15)'
+            text: '#5c4b37',
+            textSecondary: '#7a6a56',
+            textMuted: '#998875',
+            border: '#d4c8b0',
+            accent: '#8b4513',
+            btnPrimaryBg: '#5c4b37',
+            btnPrimaryText: '#f4ecd8',
+            btnPrimaryHover: '#7a6a56',
+            tooltipBg: '#5c4b37',
+            tooltipText: '#f4ecd8',
+            keyBg: 'rgba(92,75,55,0.15)',
         },
         nord: {
             background: '#2e3440',
-            text: '#eceff4', textSecondary: '#d8dee9', textMuted: '#4c566a',
-            border: '#3b4252', accent: '#88c0d0',
-            btnPrimaryBg: '#88c0d0', btnPrimaryText: '#2e3440', btnPrimaryHover: '#8fbcbb',
-            tooltipBg: '#3b4252', tooltipText: '#eceff4',
-            keyBg: 'rgba(136,192,208,0.15)'
+            text: '#eceff4',
+            textSecondary: '#d8dee9',
+            textMuted: '#4c566a',
+            border: '#3b4252',
+            accent: '#88c0d0',
+            btnPrimaryBg: '#88c0d0',
+            btnPrimaryText: '#2e3440',
+            btnPrimaryHover: '#8fbcbb',
+            tooltipBg: '#3b4252',
+            tooltipText: '#eceff4',
+            keyBg: 'rgba(136,192,208,0.15)',
         },
         dracula: {
             background: '#282a36',
-            text: '#f8f8f2', textSecondary: '#bd93f9', textMuted: '#6272a4',
-            border: '#44475a', accent: '#ff79c6',
-            btnPrimaryBg: '#ff79c6', btnPrimaryText: '#282a36', btnPrimaryHover: '#ff92d0',
-            tooltipBg: '#44475a', tooltipText: '#f8f8f2',
-            keyBg: 'rgba(255,121,198,0.15)'
+            text: '#f8f8f2',
+            textSecondary: '#bd93f9',
+            textMuted: '#6272a4',
+            border: '#44475a',
+            accent: '#ff79c6',
+            btnPrimaryBg: '#ff79c6',
+            btnPrimaryText: '#282a36',
+            btnPrimaryHover: '#ff92d0',
+            tooltipBg: '#44475a',
+            tooltipText: '#f8f8f2',
+            keyBg: 'rgba(255,121,198,0.15)',
         },
         abyss: {
             background: '#0a0a0a',
-            text: '#d4d4d4', textSecondary: '#808080', textMuted: '#505050',
-            border: '#1a1a1a', accent: '#ffffff',
-            btnPrimaryBg: '#ffffff', btnPrimaryText: '#0a0a0a', btnPrimaryHover: '#d4d4d4',
-            tooltipBg: '#141414', tooltipText: '#d4d4d4',
-            keyBg: 'rgba(255,255,255,0.08)'
-        }
+            text: '#d4d4d4',
+            textSecondary: '#808080',
+            textMuted: '#505050',
+            border: '#1a1a1a',
+            accent: '#ffffff',
+            btnPrimaryBg: '#ffffff',
+            btnPrimaryText: '#0a0a0a',
+            btnPrimaryHover: '#d4d4d4',
+            tooltipBg: '#141414',
+            tooltipText: '#d4d4d4',
+            keyBg: 'rgba(255,255,255,0.08)',
+        },
     },
 
     current: 'dark',
@@ -1020,29 +1114,31 @@ const theme = {
             sepia: 'Sepia',
             nord: 'Nord',
             dracula: 'Dracula',
-            abyss: 'Abyss'
+            abyss: 'Abyss',
         };
         return Object.keys(this.themes).map(key => ({
             value: key,
             name: names[key] || key,
-            colors: this.themes[key]
+            colors: this.themes[key],
         }));
     },
 
     hexToRgb(hex) {
         const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
-        return result ? {
-            r: parseInt(result[1], 16),
-            g: parseInt(result[2], 16),
-            b: parseInt(result[3], 16)
-        } : { r: 30, g: 30, b: 30 };
+        return result
+            ? {
+                  r: parseInt(result[1], 16),
+                  g: parseInt(result[2], 16),
+                  b: parseInt(result[3], 16),
+              }
+            : { r: 30, g: 30, b: 30 };
     },
 
     lightenColor(rgb, amount) {
         return {
             r: Math.min(255, rgb.r + amount),
             g: Math.min(255, rgb.g + amount),
-            b: Math.min(255, rgb.b + amount)
+            b: Math.min(255, rgb.b + amount),
         };
     },
 
@@ -1050,7 +1146,7 @@ const theme = {
         return {
             r: Math.max(0, rgb.r - amount),
             g: Math.max(0, rgb.g - amount),
-            b: Math.max(0, rgb.b - amount)
+            b: Math.max(0, rgb.b - amount),
         };
     },
 
@@ -1264,7 +1360,7 @@ const theme = {
     async save(themeName) {
         await storage.updatePreference('theme', themeName);
         this.apply(themeName);
-    }
+    },
 };
 
 // Consolidated cheatingDaddy object - all functions in one place
@@ -1296,6 +1392,8 @@ const cheatingDaddy = {
     getManualScreenshotMode,
     setAudioMuted,
     getAudioMuted,
+    reconnectSystemAudio,
+    getSystemAudioInterrupted,
 
     // Storage API
     storage,

@@ -122,6 +122,7 @@ function getDefaultKeybinds() {
         scrollDown: isMac ? 'Cmd+Shift+Down' : 'Ctrl+Shift+Down',
         scrollLeft: isMac ? 'Cmd+Shift+Left' : 'Ctrl+Shift+Left',
         scrollRight: isMac ? 'Cmd+Shift+Right' : 'Ctrl+Shift+Right',
+        reconnectSystemAudio: isMac ? 'Cmd+Shift+A' : 'Ctrl+Shift+A',
         designMode: isMac ? 'Cmd+D' : 'Ctrl+D',
         optimizeMode: isMac ? 'Cmd+O' : 'Ctrl+O',
         reviewMode: isMac ? 'Cmd+R' : 'Ctrl+R',
@@ -309,6 +310,20 @@ function updateGlobalShortcuts(keybinds, mainWindow, sendToRenderer, geminiSessi
             console.log(`Registered scrollRight: ${keybinds.scrollRight}`);
         } catch (error) {
             console.error(`Failed to register scrollRight (${keybinds.scrollRight}):`, error);
+        }
+    }
+
+    if (keybinds.reconnectSystemAudio && process.platform === 'darwin') {
+        try {
+            globalShortcut.register(keybinds.reconnectSystemAudio, () => {
+                console.log('Reconnect system audio shortcut triggered');
+                mainWindow.webContents.executeJavaScript(`
+                    cheatingDaddy.handleShortcut('reconnect-system-audio');
+                `);
+            });
+            console.log(`Registered reconnectSystemAudio: ${keybinds.reconnectSystemAudio}`);
+        } catch (error) {
+            console.error(`Failed to register reconnectSystemAudio (${keybinds.reconnectSystemAudio}):`, error);
         }
     }
 
