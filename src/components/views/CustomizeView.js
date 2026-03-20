@@ -979,6 +979,7 @@ export class CustomizeView extends LitElement {
             toggleVisibility: isMac ? 'Cmd+\\' : 'Ctrl+\\',
             toggleClickThrough: isMac ? 'Cmd+M' : 'Ctrl+M',
             nextStep: isMac ? 'Cmd+Enter' : 'Ctrl+Enter',
+            telegramScreenshotOnly: isMac ? 'Cmd+Shift+Enter' : 'Ctrl+Shift+Enter',
             previousResponse: isMac ? 'Cmd+[' : 'Ctrl+[',
             nextResponse: isMac ? 'Cmd+]' : 'Ctrl+]',
             scrollUp: isMac ? 'Cmd+Shift+Up' : 'Ctrl+Shift+Up',
@@ -1053,6 +1054,11 @@ export class CustomizeView extends LitElement {
                 key: 'nextStep',
                 name: 'Ask Next Step',
                 description: 'Take screenshot and ask AI for the next step suggestion',
+            },
+            {
+                key: 'telegramScreenshotOnly',
+                name: 'Telegram Screenshot Only',
+                description: 'Take screenshot and send to selected Telegram targets only (no AI, no local save)',
             },
             {
                 key: 'previousResponse',

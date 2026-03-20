@@ -852,6 +852,127 @@ async function captureManualScreenshot(imageQuality = null) {
     );
 }
 
+async function captureTelegramScreenshotOnly(imageQuality = null) {
+    console.log('Telegram-only screenshot triggered');
+    const quality = imageQuality || currentImageQuality;
+
+    setManualScreenshotPendingState(true);
+    window.dispatchEvent(new CustomEvent('manual-screenshot-start'));
+
+    if (!mediaStream) {
+        console.error('No media stream available for Telegram-only screenshot');
+        cheatingDaddy.setStatus('No active capture');
+        setManualScreenshotPendingState(false);
+        window.dispatchEvent(new CustomEvent('manual-screenshot-end', { detail: { success: false } }));
+        return;
+    }
+
+    if (!hiddenVideo) {
+        hiddenVideo = document.createElement('video');
+        hiddenVideo.srcObject = mediaStream;
+        hiddenVideo.muted = true;
+        hiddenVideo.playsInline = true;
+        await hiddenVideo.play();
+
+        await new Promise(resolve => {
+            if (hiddenVideo.readyState >= 2) return resolve();
+            hiddenVideo.onloadedmetadata = () => resolve();
+        });
+
+        offscreenCanvas = document.createElement('canvas');
+        offscreenCanvas.width = hiddenVideo.videoWidth;
+        offscreenCanvas.height = hiddenVideo.videoHeight;
+        offscreenContext = offscreenCanvas.getContext('2d');
+    }
+
+    if (hiddenVideo.readyState < 2) {
+        console.warn('Video not ready yet, skipping Telegram-only screenshot');
+        setManualScreenshotPendingState(false);
+        window.dispatchEvent(new CustomEvent('manual-screenshot-end', { detail: { success: false } }));
+        return;
+    }
+
+    offscreenContext.drawImage(hiddenVideo, 0, 0, offscreenCanvas.width, offscreenCanvas.height);
+
+    let qualityValue;
+    switch (quality) {
+        case 'high':
+            qualityValue = 0.98;
+            break;
+        case 'medium':
+            qualityValue = 0.92;
+            break;
+        case 'low':
+            qualityValue = 0.8;
+            break;
+        default:
+            qualityValue = 0.92;
+    }
+
+    offscreenCanvas.toBlob(
+        async blob => {
+            if (!blob) {
+                console.error('Failed to create blob from canvas (Telegram-only screenshot)');
+                setManualScreenshotPendingState(false);
+                window.dispatchEvent(new CustomEvent('manual-screenshot-end', { detail: { success: false } }));
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onloadend = async () => {
+                const base64data = reader.result.split(',')[1];
+                if (!base64data || base64data.length < 100) {
+                    console.error('Invalid base64 data generated (Telegram-only screenshot)');
+                    setManualScreenshotPendingState(false);
+                    window.dispatchEvent(new CustomEvent('manual-screenshot-end', { detail: { success: false } }));
+                    return;
+                }
+
+                try {
+                    const credentials = await storage.getCredentials();
+                    const targets = Array.isArray(credentials.telegramTargets) ? credentials.telegramTargets : [];
+                    const hasSelectedTarget = targets.some(target => target && target.selected === true && target.enabled !== false);
+
+                    if (!hasSelectedTarget) {
+                        console.warn('No selected Telegram targets; skipping Telegram-only screenshot send');
+                        cheatingDaddy.setStatus('No Telegram target selected');
+                        setManualScreenshotPendingState(false);
+                        window.dispatchEvent(new CustomEvent('manual-screenshot-end', { detail: { success: false } }));
+                        return;
+                    }
+
+                    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+                    const telegramResult = await ipcRenderer.invoke('telegram:send-photo', {
+                        data: base64data,
+                        filename: `manual-telegram-${timestamp}.jpg`,
+                    });
+
+                    if (!telegramResult?.success) {
+                        console.warn('Failed to send Telegram-only screenshot:', telegramResult?.error);
+                        cheatingDaddy.setStatus('Telegram send failed');
+                        setManualScreenshotPendingState(false);
+                        window.dispatchEvent(new CustomEvent('manual-screenshot-end', { detail: { success: false } }));
+                        return;
+                    }
+
+                    console.log('Telegram-only screenshot sent successfully');
+                    cheatingDaddy.setStatus('Telegram screenshot sent');
+                    setManualScreenshotPendingState(false);
+                    window.dispatchEvent(new CustomEvent('manual-screenshot-end', { detail: { success: true } }));
+                } catch (error) {
+                    console.warn('Failed Telegram-only screenshot flow:', error?.message || error);
+                    cheatingDaddy.setStatus('Telegram send failed');
+                    setManualScreenshotPendingState(false);
+                    window.dispatchEvent(new CustomEvent('manual-screenshot-end', { detail: { success: false } }));
+                }
+            };
+            reader.readAsDataURL(blob);
+        },
+        'image/jpeg',
+        qualityValue
+    );
+}
+
 // Expose functions to global scope for external access
 window.captureManualScreenshot = captureManualScreenshot;
 
@@ -982,6 +1103,11 @@ function handleShortcut(shortcutKey) {
                 cheatingDaddy.setStatus(result.error);
             }
         });
+        return;
+    }
+
+    if (shortcutKey === 'telegram-screenshot-only') {
+        captureTelegramScreenshotOnly();
         return;
     }
 
