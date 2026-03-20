@@ -1,5 +1,4 @@
 import { html, css, LitElement } from '../../assets/lit-core-2.7.4.min.js';
-import { resizeLayout } from '../../utils/windowResize.js';
 
 export class CustomizeView extends LitElement {
     static styles = css`
@@ -820,12 +819,6 @@ export class CustomizeView extends LitElement {
         } catch (error) {
             console.error('Error loading settings:', error);
         }
-    }
-
-    connectedCallback() {
-        super.connectedCallback();
-        // Resize window for this view
-        resizeLayout();
     }
 
     getProfiles() {

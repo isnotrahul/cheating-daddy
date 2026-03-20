@@ -8,15 +8,113 @@ let mouseEventsIgnored = false;
 let windowResizing = false;
 let resizeAnimation = null;
 const RESIZE_ANIMATION_DURATION = 500; // milliseconds
+const DEFAULT_WINDOW_WIDTH = 1100;
+const DEFAULT_WINDOW_HEIGHT = 800;
+const MIN_WINDOW_WIDTH = 500;
+const MIN_WINDOW_HEIGHT = 300;
+const WINDOW_BOUNDS_SAVE_DEBOUNCE_MS = 250;
+
+function isFiniteNumber(value) {
+    return typeof value === 'number' && Number.isFinite(value);
+}
+
+function normalizeSavedBounds(rawBounds) {
+    if (!rawBounds || typeof rawBounds !== 'object') {
+        return null;
+    }
+
+    const width = Math.round(rawBounds.width);
+    const height = Math.round(rawBounds.height);
+
+    if (!isFiniteNumber(width) || !isFiniteNumber(height) || width < MIN_WINDOW_WIDTH || height < MIN_WINDOW_HEIGHT) {
+        return null;
+    }
+
+    const normalized = { width, height };
+
+    if (isFiniteNumber(rawBounds.x) && isFiniteNumber(rawBounds.y)) {
+        normalized.x = Math.round(rawBounds.x);
+        normalized.y = Math.round(rawBounds.y);
+    }
+
+    return normalized;
+}
+
+function isBoundsVisibleOnAnyDisplay(bounds) {
+    if (!isFiniteNumber(bounds.x) || !isFiniteNumber(bounds.y)) {
+        return false;
+    }
+
+    const displays = screen.getAllDisplays();
+    const boundsRight = bounds.x + bounds.width;
+    const boundsBottom = bounds.y + bounds.height;
+
+    return displays.some(display => {
+        const area = display.workArea;
+        const areaRight = area.x + area.width;
+        const areaBottom = area.y + area.height;
+        const intersectsHorizontally = bounds.x < areaRight && boundsRight > area.x;
+        const intersectsVertically = bounds.y < areaBottom && boundsBottom > area.y;
+        return intersectsHorizontally && intersectsVertically;
+    });
+}
+
+function getInitialWindowBounds() {
+    const config = storage.getConfig();
+    const savedBounds = normalizeSavedBounds(config?.windowBounds);
+    if (!savedBounds) {
+        return { width: DEFAULT_WINDOW_WIDTH, height: DEFAULT_WINDOW_HEIGHT };
+    }
+
+    // If monitor topology changed and previous location is now off-screen, fall back to centered startup.
+    if (isFiniteNumber(savedBounds.x) && isFiniteNumber(savedBounds.y) && !isBoundsVisibleOnAnyDisplay(savedBounds)) {
+        return { width: savedBounds.width, height: savedBounds.height };
+    }
+
+    return savedBounds;
+}
+
+function persistWindowBounds(mainWindow) {
+    if (!mainWindow || mainWindow.isDestroyed()) {
+        return;
+    }
+
+    const bounds = mainWindow.getBounds();
+    storage.updateConfig('windowBounds', bounds);
+}
+
+function setupWindowBoundsPersistence(mainWindow) {
+    let persistTimer = null;
+    const debouncedPersist = () => {
+        if (persistTimer) {
+            clearTimeout(persistTimer);
+        }
+        persistTimer = setTimeout(() => {
+            persistWindowBounds(mainWindow);
+            persistTimer = null;
+        }, WINDOW_BOUNDS_SAVE_DEBOUNCE_MS);
+    };
+
+    mainWindow.on('move', debouncedPersist);
+    mainWindow.on('resize', debouncedPersist);
+
+    mainWindow.on('close', () => {
+        if (persistTimer) {
+            clearTimeout(persistTimer);
+            persistTimer = null;
+        }
+        persistWindowBounds(mainWindow);
+    });
+}
 
 function createWindow(sendToRenderer, geminiSessionRef) {
-    // Get layout preference (default to 'normal')
-    let windowWidth = 1100;
-    let windowHeight = 800;
+    const initialBounds = getInitialWindowBounds();
 
     const mainWindow = new BrowserWindow({
-        width: windowWidth,
-        height: windowHeight,
+        width: initialBounds.width,
+        height: initialBounds.height,
+        x: initialBounds.x,
+        y: initialBounds.y,
         frame: false,
         transparent: true,
         hasShadow: false,
@@ -72,12 +170,16 @@ function createWindow(sendToRenderer, geminiSessionRef) {
         }
     }
 
-    // Center window at the top of the screen
-    const primaryDisplay = screen.getPrimaryDisplay();
-    const { width: screenWidth, height: screenHeight } = primaryDisplay.workAreaSize;
-    const x = Math.floor((screenWidth - windowWidth) / 2);
-    const y = Math.floor((screenHeight - windowHeight) / 2);
-    mainWindow.setPosition(x, y);
+    // Center only when there is no valid saved position.
+    if (!isFiniteNumber(initialBounds.x) || !isFiniteNumber(initialBounds.y)) {
+        const primaryDisplay = screen.getPrimaryDisplay();
+        const { width: screenWidth, height: screenHeight } = primaryDisplay.workAreaSize;
+        const centeredX = Math.floor((screenWidth - initialBounds.width) / 2);
+        const centeredY = Math.floor((screenHeight - initialBounds.height) / 2);
+        mainWindow.setPosition(centeredX, centeredY);
+    }
+
+    setupWindowBoundsPersistence(mainWindow);
 
     if (process.platform === 'win32') {
         mainWindow.setAlwaysOnTop(true, 'screen-saver', 1);
@@ -489,14 +591,6 @@ function setupWindowIpcHandlers(mainWindow, sendToRenderer, geminiSessionRef) {
                 }
                 mainWindow.setSize(currentWidth, currentHeight);
 
-                // Re-center the window during animation
-                const primaryDisplay = screen.getPrimaryDisplay();
-                const { width: screenWidth } = primaryDisplay.workAreaSize;
-                const [, currentY] = mainWindow.getPosition();
-                const x = Math.floor((screenWidth - currentWidth) / 2);
-                const y = currentY;
-                mainWindow.setPosition(x, y);
-
                 if (currentFrame >= totalFrames) {
                     clearInterval(resizeAnimation);
                     resizeAnimation = null;
@@ -508,9 +602,6 @@ function setupWindowIpcHandlers(mainWindow, sendToRenderer, geminiSessionRef) {
 
                         // Ensure final size is exact
                         mainWindow.setSize(targetWidth, targetHeight);
-                        const [, finalY] = mainWindow.getPosition();
-                        const finalX = Math.floor((screenWidth - targetWidth) / 2);
-                        mainWindow.setPosition(finalX, finalY);
                     }
 
                     console.log(`Animation complete: ${targetWidth}x${targetHeight}`);

@@ -643,8 +643,8 @@ const MANUAL_SCREENSHOT_MODE_PROMPTS = {
 按以下结构中文回答:
 1. 翻译: 直接完整翻译题目(不要bullet point)
 2. 思路: 1句话概括你的思路和常见design pattern if applicable (常见有strategy/factory method/observer/decorator/adapter). 最后简单说一下每一个class要有哪些主要的功能.
-3. 代码: 用 ${programmingLanguage} 实现必要的classes. 要易于理解.只有重要的地方提供单行注释, class不需要写注释. 尽量少使用炫酷的写法, 比如def __eq__, __hash__, Enum等.
-4. 其他: 需要提供一个简单的测试用例 (10-15行左右, 不用特别全面). 面试时间是45分钟, 提供的核心代码不要过于复杂了, 大约80行左右.`,
+3. 代码: 用 ${programmingLanguage} 实现必要的classes. 精简一些. 要易于理解.只有重要的地方提供单行注释, class不需要写注释. 尽量少使用炫酷的写法, 比如def __eq__, __hash__, __repr__等.
+4. 其他: 需要提供一个简单的测试用例 (10-15行左右, 不用特别全面). 面试时间是40分钟, 提供的核心代码不要过于复杂了, 大约80行左右.`,
     },
 };
 
@@ -826,8 +826,8 @@ async function captureManualScreenshot(imageQuality = null) {
                     modePrompt && modePrompt.trim()
                         ? modePrompt
                         : isEnglish
-                          ? MANUAL_SCREENSHOT_PROMPT_EN(programmingLanguageLabel)
-                          : MANUAL_SCREENSHOT_PROMPT_ZH(programmingLanguageLabel);
+                            ? MANUAL_SCREENSHOT_PROMPT_EN(programmingLanguageLabel)
+                            : MANUAL_SCREENSHOT_PROMPT_ZH(programmingLanguageLabel);
 
                 // Send image with prompt to HTTP API (response streams via IPC events)
                 const result = await ipcRenderer.invoke('send-image-content', {
@@ -1127,10 +1127,10 @@ const theme = {
         const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
         return result
             ? {
-                  r: parseInt(result[1], 16),
-                  g: parseInt(result[2], 16),
-                  b: parseInt(result[3], 16),
-              }
+                r: parseInt(result[1], 16),
+                g: parseInt(result[2], 16),
+                b: parseInt(result[3], 16),
+            }
             : { r: 30, g: 30, b: 30 };
     },
 
